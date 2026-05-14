@@ -1,0 +1,103 @@
+﻿// Fill out your copyright notice in the Description page of Project Settings.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Pawn.h"
+#include "PlayerPawn.generated.h"
+
+UCLASS()
+class DONTDIE_API APlayerPawn : public APawn
+{
+	GENERATED_BODY()
+
+public:
+	// Sets default values for this pawn's properties
+	APlayerPawn();
+
+	UPROPERTY(EditAnywhere)
+	class UBoxComponent* BoxComp;
+
+	UPROPERTY(EditAnywhere)
+	class UStaticMeshComponent* MeshComp;
+
+	UPROPERTY(EditAnywhere)
+	class UInputMappingContext* ImcPlayerInput;
+
+	UPROPERTY(EditAnywhere)
+	class UInputAction* IaMove;
+
+	UPROPERTY(EditAnywhere)
+	class UInputAction* IaFire;
+
+	UPROPERTY(EditAnywhere)
+	float MoveSpeed = 500.f;
+
+	UPROPERTY(EditAnywhere)
+	float MaxHP = 100.f;
+
+	UPROPERTY(EditAnywhere)
+	float CurrentHP;
+
+	UPROPERTY(EditAnywhere)
+	float AttackPower = 10.f;
+
+	UPROPERTY(EditAnywhere)
+	float AttackSpeed = 3.f;
+
+	UPROPERTY(EditAnywhere)
+	float CritChance = 0.1f;
+
+	UPROPERTY(EditAnywhere)
+	int32 ProjectileCount = 1;
+
+	UPROPERTY(EditAnywhere)
+	int32 MaxAmmo = 12;
+
+	UPROPERTY(EditAnywhere)
+	int32 CurrentAmmo;
+
+	UPROPERTY(EditAnywhere)
+	float ReloadSpeed = 2.0f;
+
+	UPROPERTY(EditAnywhere)
+	int32 LifeCount = 3;
+
+	UPROPERTY(EditAnywhere)
+	float CurrencyMultiplier = 1.0f;
+
+	UPROPERTY(EditAnywhere)
+	class UArrowComponent* FirePosition;
+
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<class ABullet> BulletFactory;
+
+	UPROPERTY(EditAnywhere)
+	class APlayerController* PlayerController;
+
+	UFUNCTION(BlueprintCallable)
+	float GetCalculatedDamage();
+
+	void Reload();
+
+private:
+	FVector2D MoveInput;
+	bool bIsReloading = false;
+	float LastFireTime = 0.0f;
+	struct FTimerHandle ReloadTimerHandle;
+
+	void OnInputMove(const struct FInputActionValue& value);
+	void Fire();
+	void OnReloadComplete();
+
+protected:
+	// Called when the game starts or when spawned
+	virtual void BeginPlay() override;
+
+public:
+	// Called every frame
+	virtual void Tick(float DeltaTime) override;
+
+	// Called to bind functionality to input
+	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+};

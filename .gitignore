@@ -1,0 +1,27 @@
+# Unreal Engine .gitignore
+# Binaries
+Binaries/
+Build/
+DerivedDataCache/
+Intermediate/
+Saved/
+
+# Project files
+*.sln
+*.vcxproj
+*.filters
+*.user
+*.suo
+*.VC.db
+*.VC.opendb
+
+# IDE folders
+.idea/
+.vs/
+
+# External
+Plugins/Developer/
+
+# OS specific
+Thumbs.db
+Desktop.ini
