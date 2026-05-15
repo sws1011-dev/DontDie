@@ -40,7 +40,7 @@ public:
 	float CurrentHP;
 
 	UPROPERTY(EditAnywhere)
-	float AttackPower = 10.f;
+	float AttackPower = 100.f;
 
 	UPROPERTY(EditAnywhere)
 	float AttackSpeed = 3.f;
@@ -75,10 +75,26 @@ public:
 	UPROPERTY(EditAnywhere)
 	class APlayerController* PlayerController;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="UI")
+	TSubclassOf<class UPlayerHudWidget> HUDClass;
+
+	UPROPERTY(EditAnywhere, Category="UI")
+	TSubclassOf<class UUserWidget> GameOverWidgetClass;
+
+	UPROPERTY()
+	class UPlayerHudWidget* HUDWidget;
+
+	void DecreaseLife();
+
+	int32 CurrentLife = 3;
+
+
 	UFUNCTION(BlueprintCallable)
 	float GetCalculatedDamage();
 
 	void Reload();
+	void RefreshHUD();
+	
 
 private:
 	FVector2D MoveInput;

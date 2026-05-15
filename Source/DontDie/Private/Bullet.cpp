@@ -59,14 +59,7 @@ void ABullet::OnBulletOverlap(UPrimitiveComponent* OverlappedComponent, AActor* 
 			APlayerPawn* player = Cast<APlayerPawn>(pc->GetPawn());
 			if (player != nullptr)
 			{
-				// 계산된 데미지(치명타 포함) 적용
-				enemy->CurrentHP -= player->GetCalculatedDamage();
-
-				// HP가 0 이하면 제거
-				if (enemy->CurrentHP <= 0)
-				{
-					enemy->Destroy();
-				}
+				enemy->TakeDamage(player->GetCalculatedDamage(), GetActorLocation());
 			}
 		}
 	}

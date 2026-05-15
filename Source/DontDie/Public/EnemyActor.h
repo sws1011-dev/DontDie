@@ -23,7 +23,7 @@ public:
 
 	UPROPERTY()
 	class APlayerPawn* TargetPlayer;
-	
+
 	UPROPERTY(EditAnywhere)
 	float MoveSpeed = 600.f;
 
@@ -44,6 +44,22 @@ public:
 
 	UPROPERTY(EditAnywhere)
 	int32 TraceRate = 50;
+
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<class UEnemyDamagedWidget> DamagedWidget;
+	
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<class UEnemyHpWidget> HpWidget;
+	
+	UPROPERTY(EditAnywhere)
+	class UWidgetComponent* HpWidgetComp;
+	
+	
+	void ShowDamage(float DamageAmount, FVector HitLocation);
+	
+	void TakeDamage(float DamageAmount, FVector HitLocation);
+	
+	void UpdateHpUI();
 
 	UFUNCTION()
 	void OnEnemyOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,

@@ -4,10 +4,14 @@
 #include "PlayerPawn.h"
 
 #include "Bullet.h"
+#include "DontDieGameModeBase.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "PlayerHudWidget.h"
+#include "Blueprint/UserWidget.h"
 #include "Components/ArrowComponent.h"
 #include "Components/BoxComponent.h"
+#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 
 
@@ -51,6 +55,17 @@ void APlayerPawn::BeginPlay()
 		if (subsys != nullptr)
 		{
 			subsys->AddMappingContext(ImcPlayerInput, 0);
+		}
+	}
+
+	if (HUDClass != nullptr)
+	{
+		HUDWidget = CreateWidget<UPlayerHudWidget>(GetWorld(), HUDClass);
+		if (HUDWidget != nullptr)
+		{
+			HUDWidget->AddToViewport();
+			HUDWidget->UpdateLifeText(CurrentLife);
+			UE_LOG(LogTemp, Warning, TEXT("HUD Created and Added to Viewport!"));
 		}
 	}
 }
@@ -174,5 +189,47 @@ void APlayerPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 		eic->BindAction(IaMove, ETriggerEvent::Triggered, this, &APlayerPawn::OnInputMove);
 		eic->BindAction(IaMove, ETriggerEvent::Completed, this, &APlayerPawn::OnInputMove);
 		eic->BindAction(IaFire, ETriggerEvent::Started, this, &APlayerPawn::Fire);
+	}
+}
+
+void APlayerPawn::DecreaseLife()
+{
+	CurrentLife = FMath::Max(0, CurrentLife - 1);
+
+	if (HUDWidget != nullptr)
+	{
+		HUDWidget->UpdateLifeText(CurrentLife);
+	}
+
+	if (CurrentLife <= 0)
+	{
+		if (GameOverWidgetClass != nullptr)
+		{
+			UUserWidget* GameOverUI = CreateWidget<UUserWidget>(GetWorld(), GameOverWidgetClass);
+
+			if (GameOverUI != nullptr)
+			{
+				GameOverUI->AddToViewport();
+				APlayerController* pc = Cast<APlayerController>(GetWorld()->GetFirstPlayerController());
+				if (pc != nullptr)
+				{
+					pc->SetShowMouseCursor(true);
+					pc->SetInputMode(FInputModeUIOnly());
+				}
+				UGameplayStatics::SetGamePaused(GetWorld(), true);
+			}
+		}
+	}
+}
+
+void APlayerPawn::RefreshHUD()
+{
+	UE_LOG(LogTemp, Warning, TEXT("RefreshHUD Called!"));
+	ADontDieGameModeBase* GM = Cast<ADontDieGameModeBase>(GetWorld()->GetAuthGameMode());
+	if (GM && HUDWidget)
+	{
+		float Progress = GM->GetWaveProgress();
+		UE_LOG(LogTemp, Warning, TEXT("Current Progress: %f"), Progress); // 수치가 변하는지 확인
+		HUDWidget->UpdateWaveProgress(Progress);
 	}
 }

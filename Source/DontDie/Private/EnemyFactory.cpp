@@ -3,6 +3,7 @@
 
 #include "EnemyFactory.h"
 
+#include "DontDieGameModeBase.h"
 #include "EnemyActor.h"
 #include "Components/BoxComponent.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -24,30 +25,25 @@ void AEnemyFactory::BeginPlay()
 	Super::BeginPlay();
 }
 
-// Called every frame
-void AEnemyFactory::Tick(float DeltaTime)
+void AEnemyFactory::SpawnEnemies(int32 Count)
 {
-	Super::Tick(DeltaTime);
-
-	CurrentTime += DeltaTime;
-
-	if (CurrentTime > DelayTime)
+	for (int32 i = 0; i < Count; i++)
 	{
-		CurrentTime = 0;
-		int32 SpawnCount = FMath::RandRange(1, 5);
-		for (int32 i = 0; i < SpawnCount; i++)
+		FVector RandomLocation = UKismetMathLibrary::RandomPointInBoundingBox(
+			SpawnArea->GetComponentLocation(),
+			SpawnArea->GetScaledBoxExtent()
+		);
+		RandomLocation.Z = GetActorLocation().Z;
+
+		AEnemyActor* NewEnemy = GetWorld()->SpawnActor<AEnemyActor>(Enemy, RandomLocation, GetActorRotation());
+
+		if (NewEnemy)
 		{
-			FVector RandomLocation = UKismetMathLibrary::RandomPointInBoundingBox(
-				SpawnArea->GetComponentLocation(),
-				SpawnArea->GetScaledBoxExtent()
-			);
-			RandomLocation.Z = GetActorLocation().Z;
-
-			AEnemyActor* NewEnemy = GetWorld()->SpawnActor<AEnemyActor>(Enemy, RandomLocation, GetActorRotation());
-
-			if (NewEnemy)
+			NewEnemy->MoveSpeed = FMath::RandRange(300.f, 500.f);
+			ADontDieGameModeBase* gamemode = Cast<ADontDieGameModeBase>(GetWorld()->GetAuthGameMode());
+			if (gamemode != nullptr)
 			{
-				NewEnemy->MoveSpeed = FMath::RandRange(300.f, 500.f);
+				gamemode->AddAliveEnemyCount(1);
 			}
 		}
 	}

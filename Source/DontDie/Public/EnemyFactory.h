@@ -14,16 +14,16 @@ class DONTDIE_API AEnemyFactory : public AActor
 public:
 	// Sets default values for this actor's properties
 	AEnemyFactory();
-	
+
 	UPROPERTY(EditAnywhere)
 	class UBoxComponent* SpawnArea;
-	
+
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<class AEnemyActor> Enemy;
-	
+
 	UPROPERTY(EditAnywhere)
 	float DelayTime = 3.f;
-	
+
 private:
 	float CurrentTime = 0;
 
@@ -31,7 +31,6 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-public:
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+public:	
+	void SpawnEnemies(int32 Count);
 };
