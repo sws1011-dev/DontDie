@@ -3,14 +3,13 @@
 
 #include "PlayerPawn.h"
 
-#include "Bullet.h"
 #include "DontDieGameModeBase.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "PlayerHudWidget.h"
+#include "Weapon.h"
 #include "Blueprint/UserWidget.h"
-#include "Components/ArrowComponent.h"
-#include "Components/BoxComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 
@@ -21,20 +20,13 @@ APlayerPawn::APlayerPawn()
 	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
-	BoxComp = CreateDefaultSubobject<UBoxComponent>(TEXT("My Box Component"));
+	CapsuleComp = CreateDefaultSubobject<UCapsuleComponent>(TEXT("Capsule Component"));
+	CapsuleComp->InitCapsuleSize(55.f, 95.f);
+	SetRootComponent(CapsuleComp);
 
-	SetRootComponent(BoxComp);
-
-	MeshComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("My StaticMesh Component"));
-	MeshComp->SetupAttachment(BoxComp);
-
-	FVector boxSize = FVector(50.0f, 50.0f, 50.0f);
-	BoxComp->SetBoxExtent(boxSize);
-
-	FirePosition = CreateDefaultSubobject<UArrowComponent>(TEXT("Fire Component"));
-	FirePosition->SetupAttachment(BoxComp);
-
-	BoxComp->SetCollisionProfileName(TEXT("Player"));
+	SkeletalMeshComp = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("My Skeletal Mesh Component"));
+	SkeletalMeshComp->SetupAttachment(CapsuleComp);
+	CapsuleComp->SetCollisionProfileName(TEXT("Player"));
 }
 
 // Called when the game starts or when spawned
@@ -43,7 +35,6 @@ void APlayerPawn::BeginPlay()
 	Super::BeginPlay();
 
 	CurrentHP = MaxHP;
-	CurrentAmmo = MaxAmmo;
 
 	PlayerController = GetWorld()->GetFirstPlayerController();
 
@@ -57,7 +48,7 @@ void APlayerPawn::BeginPlay()
 			subsys->AddMappingContext(ImcPlayerInput, 0);
 		}
 	}
-
+	
 	if (HUDClass != nullptr)
 	{
 		HUDWidget = CreateWidget<UPlayerHudWidget>(GetWorld(), HUDClass);
@@ -65,7 +56,26 @@ void APlayerPawn::BeginPlay()
 		{
 			HUDWidget->AddToViewport();
 			HUDWidget->UpdateLifeText(CurrentLife);
+			UpdateReloadingHUD(false);
 			UE_LOG(LogTemp, Warning, TEXT("HUD Created and Added to Viewport!"));
+		}
+	}
+
+	if (DefaultWeaponClass != nullptr)
+	{
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = this;
+		SpawnParams.Instigator = this;
+
+		CurrentWeapon = GetWorld()->SpawnActor<AWeapon>(DefaultWeaponClass, GetActorLocation(), GetActorRotation(),
+		                                                SpawnParams);
+
+		if (CurrentWeapon != nullptr)
+		{
+			FAttachmentTransformRules AttachRules(EAttachmentRule::SnapToTarget, true);
+			CurrentWeapon->AttachToComponent(SkeletalMeshComp, AttachRules, TEXT("WeaponSocket"));
+			
+			UpdateAmmoHUD(CurrentWeapon->CurrentAmmo, CurrentWeapon->MaxAmmo);
 		}
 	}
 }
@@ -93,7 +103,6 @@ void APlayerPawn::Tick(float DeltaTime)
 			FVector IntersectLocation = WorldLocation + (WorldDirection * Distance);
 
 			FRotator TargetRotation = UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), IntersectLocation);
-
 			SetActorRotation(TargetRotation);
 		}
 	}
@@ -106,75 +115,38 @@ void APlayerPawn::OnInputMove(const struct FInputActionValue& value)
 
 void APlayerPawn::Fire()
 {
-	// 1. 재장전 중인지 확인
-	if (bIsReloading)
+	if (CurrentWeapon != nullptr)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Reloading..."));
-		return;
-	}
-
-	// 2. 공격 속도(연사 제한) 확인
-	float CurrentTime = GetWorld()->GetTimeSeconds();
-	if (CurrentTime - LastFireTime < (1.0f / AttackSpeed))
-	{
-		return;
-	}
-
-	// 3. 탄약 확인
-	if (CurrentAmmo <= 0)
-	{
-		Reload();
-		return;
-	}
-
-	// 4. 발사 로직
-	ABullet* bullet = GetWorld()->SpawnActor<ABullet>(BulletFactory,
-	                                                  FirePosition->GetComponentLocation(),
-	                                                  FirePosition->GetComponentRotation());
-
-	if (bullet != nullptr)
-	{
-		CurrentAmmo--;
-		LastFireTime = CurrentTime;
-		UE_LOG(LogTemp, Log, TEXT("Fire! Ammo: %d / %d"), CurrentAmmo, MaxAmmo);
-
-		// 탄약이 방금 다 떨어졌다면 바로 재장전 시작
-		if (CurrentAmmo <= 0)
+		float DamageMultiplier = 1.0f;
+		if (FMath::FRand() < CritChance)
 		{
-			Reload();
+			DamageMultiplier = 2.0f;
 		}
+
+		CurrentWeapon->Fire(DamageMultiplier);
 	}
 }
 
 void APlayerPawn::Reload()
 {
-	if (bIsReloading || CurrentAmmo == MaxAmmo) return;
-
-	bIsReloading = true;
-	UE_LOG(LogTemp, Warning, TEXT("Reload Started... Wait %f sec"), ReloadSpeed);
-
-	// 재장전 시간 후 완료 함수 호출
-	GetWorld()->GetTimerManager().SetTimer(ReloadTimerHandle, this, &APlayerPawn::OnReloadComplete, ReloadSpeed, false);
-}
-
-void APlayerPawn::OnReloadComplete()
-{
-	bIsReloading = false;
-	CurrentAmmo = MaxAmmo;
-	UE_LOG(LogTemp, Warning, TEXT("Reload Complete! Ammo: %d"), CurrentAmmo);
+	if (CurrentWeapon != nullptr)
+	{
+		CurrentWeapon->Reload();
+	}
 }
 
 float APlayerPawn::GetCalculatedDamage()
 {
-	float FinalDamage = AttackPower;
-
-	if (FMath::FRand() < CritChance)
+	if (CurrentWeapon != nullptr)
 	{
-		FinalDamage *= 2.0f;
-		UE_LOG(LogTemp, Warning, TEXT("Critical Hit! Damage: %f"), FinalDamage);
+		float FinalDamage = CurrentWeapon->BaseDamage;
+		if (FMath::FRand() < CritChance)
+		{
+			FinalDamage *= 2.0f;
+		}
+		return FinalDamage;
 	}
-
-	return FinalDamage;
+	return 0;
 }
 
 // Called to bind functionality to input
@@ -189,6 +161,7 @@ void APlayerPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 		eic->BindAction(IaMove, ETriggerEvent::Triggered, this, &APlayerPawn::OnInputMove);
 		eic->BindAction(IaMove, ETriggerEvent::Completed, this, &APlayerPawn::OnInputMove);
 		eic->BindAction(IaFire, ETriggerEvent::Started, this, &APlayerPawn::Fire);
+		eic->BindAction(IaReload, ETriggerEvent::Started, this, &APlayerPawn::Reload);
 	}
 }
 
@@ -229,7 +202,22 @@ void APlayerPawn::RefreshHUD()
 	if (GM && HUDWidget)
 	{
 		float Progress = GM->GetWaveProgress();
-		UE_LOG(LogTemp, Warning, TEXT("Current Progress: %f"), Progress); // 수치가 변하는지 확인
 		HUDWidget->UpdateWaveProgress(Progress);
+	}
+}
+
+void APlayerPawn::UpdateAmmoHUD(int32 CurrentAmmo, int32 MaxAmmo)
+{
+	if (HUDWidget != nullptr)
+	{
+		HUDWidget->UpdateAmmoText(CurrentAmmo, MaxAmmo);
+	}
+}
+
+void APlayerPawn::UpdateReloadingHUD(bool bIsReloading)
+{
+	if (HUDWidget != nullptr)
+	{
+		HUDWidget->SetReloadingVisibility(bIsReloading);
 	}
 }

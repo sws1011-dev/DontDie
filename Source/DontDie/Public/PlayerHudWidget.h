@@ -13,16 +13,22 @@ UCLASS()
 class DONTDIE_API UPlayerHudWidget : public UUserWidget
 {
 	GENERATED_BODY()
-	
+
 public:
-	void UpdateLifeText(int32 CurrentLife);
-	
 	UPROPERTY(meta =(BindWidget))
 	class UTextBlock* LifeText;
-	
+
 	UPROPERTY(meta = (BindWidget))
 	class UProgressBar* WaveProgressBar;
-	
-	// 퍼센트를 업데이트하는 함수 추가
+
+	UPROPERTY(meta = (BindWidget))
+	class UTextBlock* AmmoText;
+
+	UPROPERTY(meta = (BindWidget))
+	class UTextBlock* ReloadText;;
+
+	void UpdateAmmoText(int32 CurrentAmmo, int32 MaxAmmo);
+	void UpdateLifeText(int32 CurrentLife);
 	void UpdateWaveProgress(float Percent);
+	void SetReloadingVisibility(bool bIsReloading);
 };

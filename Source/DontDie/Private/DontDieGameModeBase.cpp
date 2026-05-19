@@ -62,7 +62,6 @@ void ADontDieGameModeBase::StartWave()
 
 	UE_LOG(LogTemp, Warning, TEXT("=== Wave %d Started! Target: %d ==="), CurrentWave, TotalEnemiesInWave);
 
-	// 2초마다 SpawnZombieGroup 함수 호출 (반복)
 	GetWorldTimerManager().SetTimer(SpawnTimerHandle, this, &ADontDieGameModeBase::SpawnZombieGroup, 2.0f, true);
 }
 

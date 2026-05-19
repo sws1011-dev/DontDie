@@ -8,6 +8,7 @@
 #include "EnemyHpWidget.h"
 #include "PlayerPawn.h"
 #include "Components/BoxComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -19,25 +20,18 @@ AEnemyActor::AEnemyActor()
 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
-	BoxComp = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxComponent"));
+	CapsuleComp = CreateDefaultSubobject<UCapsuleComponent>(TEXT("CapsuleComponent"));
+	CapsuleComp->InitCapsuleSize(55.f, 95.f);
+	SetRootComponent(CapsuleComp);
 
-	SetRootComponent(BoxComp);
+	SkeletalMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("SkeletalMeshComponent"));
+	SkeletalMeshComponent->SetupAttachment(CapsuleComp);
 
-	StaticMeshComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StaticMeshComponent"));
-
-	StaticMeshComp->SetupAttachment(BoxComp);
-
-	FVector boxSize = FVector(50.0f, 50.0f, 50.0f);
-	BoxComp->SetBoxExtent(boxSize);
-
-	BoxComp->SetCollisionProfileName(TEXT("Enemy"));
+	CapsuleComp->SetCollisionProfileName(TEXT("Enemy"));
 
 	HpWidgetComp = CreateDefaultSubobject<UWidgetComponent>(TEXT("HpWidgetComponent"));
-
-	HpWidgetComp->SetupAttachment(BoxComp);
-
+	HpWidgetComp->SetupAttachment(CapsuleComp);
 	HpWidgetComp->SetRelativeLocation(FVector(0.0f, 0.0f, 100.0f));
-
 	HpWidgetComp->SetWidgetSpace(EWidgetSpace::Screen);
 }
 
@@ -45,6 +39,8 @@ AEnemyActor::AEnemyActor()
 void AEnemyActor::BeginPlay()
 {
 	Super::BeginPlay();
+
+	MyGameMode = Cast<ADontDieGameModeBase>(GetWorld()->GetAuthGameMode());
 
 	CurrentHP = MaxHP;
 
@@ -55,7 +51,7 @@ void AEnemyActor::BeginPlay()
 	}
 	dir = GetActorForwardVector();
 
-	BoxComp->OnComponentBeginOverlap.AddDynamic(this, &AEnemyActor::OnEnemyOverlap);
+	CapsuleComp->OnComponentBeginOverlap.AddDynamic(this, &AEnemyActor::OnEnemyOverlap);
 }
 
 void AEnemyActor::OnEnemyOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
@@ -119,9 +115,8 @@ void AEnemyActor::TakeDamage(float DamageAmount, FVector HitLocation)
 
 	if (CurrentHP <= 0)
 	{
-		ADontDieGameModeBase* GM = Cast<ADontDieGameModeBase>(GetWorld()->GetAuthGameMode());
-		if (GM) GM->OnEnemyKilled();
-       
+		if (MyGameMode) MyGameMode->OnEnemyKilled();
+
 		APlayerController* PC = GetWorld()->GetFirstPlayerController();
 		if (PC)
 		{
@@ -131,11 +126,9 @@ void AEnemyActor::TakeDamage(float DamageAmount, FVector HitLocation)
 				Player->RefreshHUD();
 			}
 		}
-       
-		// 반드시 조건문 안에서 Destroy해야 죽었을 때만 사라집니다!
-		Destroy(); 
+
+		Destroy();
 	}
-	// Destroy(); <-- 이 녀석이 밖에 있어서 한 대만 맞아도 삭제되었던 겁니다!
 }
 
 void AEnemyActor::UpdateHpUI()
@@ -147,7 +140,7 @@ void AEnemyActor::UpdateHpUI()
 	if (HpBarUI != nullptr && MaxHP > 0)
 	{
 		// 실수 연산을 위해 float 보장
-		float HPPercent = (float)CurrentHP / (float)MaxHP; 
+		float HPPercent = (float)CurrentHP / (float)MaxHP;
 		HpBarUI->UpdateHealthBar(HPPercent);
 	}
 }

@@ -16,10 +16,10 @@ public:
 	AEnemyActor();
 
 	UPROPERTY(EditAnywhere)
-	class UBoxComponent* BoxComp;
+	class UCapsuleComponent* CapsuleComp;
 
 	UPROPERTY(EditAnywhere)
-	class UStaticMeshComponent* StaticMeshComp;
+	class USkeletalMeshComponent* SkeletalMeshComponent;
 
 	UPROPERTY()
 	class APlayerPawn* TargetPlayer;
@@ -47,18 +47,21 @@ public:
 
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<class UEnemyDamagedWidget> DamagedWidget;
-	
+
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<class UEnemyHpWidget> HpWidget;
-	
+
 	UPROPERTY(EditAnywhere)
 	class UWidgetComponent* HpWidgetComp;
 	
-	
+	UPROPERTY(Transient)
+	class ADontDieGameModeBase* MyGameMode;
+
+
 	void ShowDamage(float DamageAmount, FVector HitLocation);
-	
+
 	void TakeDamage(float DamageAmount, FVector HitLocation);
-	
+
 	void UpdateHpUI();
 
 	UFUNCTION()

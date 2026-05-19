@@ -16,19 +16,16 @@ public:
 	APlayerPawn();
 
 	UPROPERTY(EditAnywhere)
-	class UBoxComponent* BoxComp;
+	class UCapsuleComponent* CapsuleComp;
 
 	UPROPERTY(EditAnywhere)
-	class UStaticMeshComponent* MeshComp;
+	class USkeletalMeshComponent* SkeletalMeshComp;
 
-	UPROPERTY(EditAnywhere)
-	class UInputMappingContext* ImcPlayerInput;
+	UPROPERTY(EditAnywhere, Category="Weapon")
+	TSubclassOf<class AWeapon> DefaultWeaponClass;
 
-	UPROPERTY(EditAnywhere)
-	class UInputAction* IaMove;
-
-	UPROPERTY(EditAnywhere)
-	class UInputAction* IaFire;
+	UPROPERTY()
+	class AWeapon* CurrentWeapon;
 
 	UPROPERTY(EditAnywhere)
 	float MoveSpeed = 500.f;
@@ -40,25 +37,10 @@ public:
 	float CurrentHP;
 
 	UPROPERTY(EditAnywhere)
-	float AttackPower = 100.f;
-
-	UPROPERTY(EditAnywhere)
-	float AttackSpeed = 3.f;
-
-	UPROPERTY(EditAnywhere)
 	float CritChance = 0.1f;
 
 	UPROPERTY(EditAnywhere)
 	int32 ProjectileCount = 1;
-
-	UPROPERTY(EditAnywhere)
-	int32 MaxAmmo = 12;
-
-	UPROPERTY(EditAnywhere)
-	int32 CurrentAmmo;
-
-	UPROPERTY(EditAnywhere)
-	float ReloadSpeed = 2.0f;
 
 	UPROPERTY(EditAnywhere)
 	int32 LifeCount = 3;
@@ -67,10 +49,16 @@ public:
 	float CurrencyMultiplier = 1.0f;
 
 	UPROPERTY(EditAnywhere)
-	class UArrowComponent* FirePosition;
+	class UInputMappingContext* ImcPlayerInput;
 
 	UPROPERTY(EditAnywhere)
-	TSubclassOf<class ABullet> BulletFactory;
+	class UInputAction* IaMove;
+
+	UPROPERTY(EditAnywhere)
+	class UInputAction* IaFire;
+
+	UPROPERTY(EditAnywhere)
+	class UInputAction* IaReload;
 
 	UPROPERTY(EditAnywhere)
 	class APlayerController* PlayerController;
@@ -88,23 +76,19 @@ public:
 
 	int32 CurrentLife = 3;
 
-
 	UFUNCTION(BlueprintCallable)
 	float GetCalculatedDamage();
 
 	void Reload();
 	void RefreshHUD();
-	
+	void UpdateAmmoHUD(int32 CurrentAmmo, int32 MaxAmmo);
+	void UpdateReloadingHUD(bool bIsReloading);
 
 private:
 	FVector2D MoveInput;
-	bool bIsReloading = false;
-	float LastFireTime = 0.0f;
-	struct FTimerHandle ReloadTimerHandle;
 
 	void OnInputMove(const struct FInputActionValue& value);
 	void Fire();
-	void OnReloadComplete();
 
 protected:
 	// Called when the game starts or when spawned
