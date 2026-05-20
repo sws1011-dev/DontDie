@@ -17,7 +17,7 @@ ABullet::ABullet()
 	BoxComp = CreateDefaultSubobject<UBoxComponent>(TEXT("My Box Collider"));
 	SetRootComponent(BoxComp);
 
-	FVector boxSize = FVector(20.0f, 3.0f, 3.0f);
+	FVector boxSize = FVector(20.0f, 5.0f, 5.0f);
 	BoxComp->SetBoxExtent(boxSize);
 	
 	MeshComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("My Mesh Component"));

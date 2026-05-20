@@ -22,13 +22,21 @@ public:
 	class UProgressBar* WaveProgressBar;
 
 	UPROPERTY(meta = (BindWidget))
+	class UTextBlock* WaveStageText;
+
+	UPROPERTY(meta = (BindWidget))
 	class UTextBlock* AmmoText;
 
 	UPROPERTY(meta = (BindWidget))
-	class UTextBlock* ReloadText;;
+	class UTextBlock* ReloadText;
+
+	UPROPERTY(meta = (BindWidget))
+	class UTextBlock* GoldText;
 
 	void UpdateAmmoText(int32 CurrentAmmo, int32 MaxAmmo);
 	void UpdateLifeText(int32 CurrentLife);
 	void UpdateWaveProgress(float Percent);
 	void SetReloadingVisibility(bool bIsReloading);
+	void UpdateGoldText(int32 CurrentGold);
+	void UpdateWaveStageText(int32 CurrentWave);
 };

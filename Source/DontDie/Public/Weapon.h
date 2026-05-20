@@ -28,7 +28,7 @@ public:
 	float BaseDamage = 10.f;
 
 	UPROPERTY(EditAnywhere, Category="Weapon|Stats")
-	float FireRate = 3.f;
+	float FireRate = 8.f;
 
 	UPROPERTY(EditAnywhere, Category="Weapon|Stats")
 	int32 MaxAmmo = 12;
@@ -39,12 +39,25 @@ public:
 	int32 CurrentAmmo;
 	bool bIsReloading = false;
 
-	void Fire(float DamageMultiplier = 1.0f);
+	void Fire(int32 ProjectileCount = 1, float DamageMultiplier = 1.0f);
 	void Reload();
 
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+
+private:
+	// 점사(Burst)를 실제로 수행할 내부 함수
+	void StartBurst(int32 Count, float Multiplier);
+	void ExecuteShot();
+
+	// 점사 상태 저장
+	int32 RemainingBurstCount = 0;
+	float CurrentBurstMultiplier = 1.0f;
+	FTimerHandle BurstTimerHandle;
+
+	UPROPERTY(EditAnywhere, Category="Weapon|Stats")
+	float BurstInterval = 0.1f; // 점사 총알 간 간격 (초)
 
 public:
 	float LastFireTime = 0.f;

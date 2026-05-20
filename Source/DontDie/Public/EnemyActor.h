@@ -28,7 +28,7 @@ public:
 	float MoveSpeed = 600.f;
 
 	UPROPERTY(EditAnywhere)
-	float MaxHP = 50.f;
+	float MaxHP = 30.f;
 
 	UPROPERTY(EditAnywhere)
 	float CurrentHP;

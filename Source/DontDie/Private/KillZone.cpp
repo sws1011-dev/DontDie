@@ -1,8 +1,8 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+﻿#include "KillZone.h"
 
-
-#include "KillZone.h"
-
+#include "DontDieGameModeBase.h"
+#include "EnemyActor.h"
+#include "PlayerPawn.h"
 #include "Components/BoxComponent.h"
 
 
@@ -31,6 +31,24 @@ void AKillZone::OnKillZoneOverlap(UPrimitiveComponent* OverlappedComponent, AAct
                                   UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
                                   const FHitResult& SweepResult)
 {
+	if (OtherActor == nullptr) return;
+
+	// 1. 적이 킬존에 닿았을 때
+	if (AEnemyActor* Enemy = Cast<AEnemyActor>(OtherActor))
+	{
+		ADontDieGameModeBase* GM = Cast<ADontDieGameModeBase>(GetWorld()->GetAuthGameMode());
+		if (GM)
+		{
+			// 적 숫자를 줄여서 웨이브 종료가 안 되는 현상을 방지
+			GM->OnEnemyKilled();
+		}
+	}
+	// 2. 플레이어가 킬존에 닿았을 때
+	else if (APlayerPawn* Player = Cast<APlayerPawn>(OtherActor))
+	{
+		Player->DecreaseLife();
+	}
+
 	OtherActor->Destroy();
 }
 

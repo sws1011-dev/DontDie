@@ -62,7 +62,13 @@ void AEnemyActor::OnEnemyOverlap(UPrimitiveComponent* OverlappedComponent, AActo
 	APlayerPawn* player = Cast<APlayerPawn>(OtherActor);
 	if (player != nullptr)
 	{
-		// 충돌된 플레이어 제거
+		// 게임모드에 자폭 소식을 알려 생존 적 숫자를 줄입니다.
+		if (MyGameMode)
+		{
+			MyGameMode->OnEnemyOverlapDestroyed();
+		}
+
+		// 충돌된 플레이어 생명 감소
 		player->DecreaseLife();
 		// 적 자신도 제거
 		Destroy();
@@ -115,18 +121,20 @@ void AEnemyActor::TakeDamage(float DamageAmount, FVector HitLocation)
 
 	if (CurrentHP <= 0)
 	{
-		if (MyGameMode) MyGameMode->OnEnemyKilled();
-
-		APlayerController* PC = GetWorld()->GetFirstPlayerController();
-		if (PC)
+		if (MyGameMode)
 		{
-			APlayerPawn* Player = Cast<APlayerPawn>(PC->GetPawn());
-			if (Player)
-			{
-				Player->RefreshHUD();
-			}
-		}
+			MyGameMode->OnEnemyKilled();
 
+			// 플레이어의 재화 획득 배율 반영
+			float Multiplier = 1.0f;
+			if (TargetPlayer)
+			{
+				Multiplier = TargetPlayer->CurrencyMultiplier;
+			}
+
+			int32 FinalGold = FMath::RoundToInt(CurrencyReward * Multiplier);
+			MyGameMode->AddGold(FinalGold);
+		}
 		Destroy();
 	}
 }

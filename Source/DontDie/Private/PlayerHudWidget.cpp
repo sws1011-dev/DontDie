@@ -51,3 +51,22 @@ void UPlayerHudWidget::SetReloadingVisibility(bool bIsReloading)
 		}
 	}
 }
+
+void UPlayerHudWidget::UpdateGoldText(int32 CurrentGold)
+{
+	if (GoldText)
+	{
+		FString GoldString = FString::Printf(TEXT("%d"), CurrentGold);
+		GoldText->SetText(FText::FromString(GoldString));
+	}
+}
+
+void UPlayerHudWidget::UpdateWaveStageText(int32 CurrentWave)
+{
+	if (WaveStageText)
+	{
+		// 출력 스타일: "WAVE 1" 형식으로 가공
+		FString StageString = FString::Printf(TEXT("WAVE %d"), CurrentWave);
+		WaveStageText->SetText(FText::FromString(StageString));
+	}
+}

@@ -29,35 +29,66 @@ void AWeapon::BeginPlay()
 	CurrentAmmo = MaxAmmo;
 }
 
-void AWeapon::Fire(float DamageMultiplier)
+void AWeapon::Fire(int32 ProjectileCount, float DamageMultiplier)
 {
-	// 1. 재장전 중인지 확인
-	if (bIsReloading)
+	// 1. 재장전 중이거나 이미 점사 중이면 발사 불가
+	if (bIsReloading || RemainingBurstCount > 0)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Weapon: Cannot Fire! Now Reloading..."));
 		return;
 	}
 
-	// 2. 공격 속도(연사 제한) 확인
+	// 2. 공격 속도(연사 제한) 확인 - 첫 발사 시점 기준
 	float CurrentTime = GetWorld()->GetTimeSeconds();
 	if (CurrentTime - LastFireTime < (1.0f / FireRate))
 	{
 		return;
 	}
 
-	// 3. 탄약 확인
+	// 3. 탄약 확인 (최소 한 발은 있어야 시작)
 	if (CurrentAmmo <= 0)
 	{
 		Reload();
 		return;
 	}
 
-	// 4. 총알 발사 로직
+	// 4. 점사 시작
+	LastFireTime = CurrentTime;
+	StartBurst(ProjectileCount, DamageMultiplier);
+}
+
+void AWeapon::StartBurst(int32 Count, float Multiplier)
+{
+	RemainingBurstCount = Count;
+	CurrentBurstMultiplier = Multiplier;
+
+	// 즉시 첫 발사 실행
+	ExecuteShot();
+
+	// 남은 발사수가 있다면 타이머 설정
+	if (RemainingBurstCount > 0)
+	{
+		GetWorldTimerManager().SetTimer(BurstTimerHandle, this, &AWeapon::ExecuteShot, BurstInterval, true);
+	}
+}
+
+void AWeapon::ExecuteShot()
+{
+	// 탄약이 없거나 모든 점사를 마쳤으면 중단
+	if (CurrentAmmo <= 0 || RemainingBurstCount <= 0)
+	{
+		RemainingBurstCount = 0;
+		GetWorldTimerManager().ClearTimer(BurstTimerHandle);
+		
+		if (CurrentAmmo <= 0) Reload();
+		return;
+	}
+
+	// 총알 생성 로직
 	if (BulletFactory)
 	{
-		// PlayerPawn에 있던 정적 오프셋 대신, 이제 WeaponMesh에 붙은 FirePosition의 실제 위치/회전을 사용합니다.
 		FVector SpawnLocation = FirePosition->GetComponentLocation();
 		FRotator SpawnRotation = FRotator::ZeroRotator;
+		
 		if (APawn* OwnerPawn = Cast<APawn>(GetOwner()))
 		{
 			SpawnRotation = OwnerPawn->GetActorRotation();
@@ -69,28 +100,25 @@ void AWeapon::Fire(float DamageMultiplier)
 
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.Owner = this;
-		SpawnParams.Instigator = Cast<APawn>(GetOwner()); // 무기를 소유한 플레이어를 Instigator로 설정
+		SpawnParams.Instigator = Cast<APawn>(GetOwner());
 
 		ABullet* Bullet = GetWorld()->SpawnActor<ABullet>(BulletFactory, SpawnLocation, SpawnRotation, SpawnParams);
 
 		if (Bullet != nullptr)
 		{
-			// 필요하다면 총알에 데미지를 전달합니다.
-			// Bullet->SetDamage(CalculatedDamage);
-
+			// 데미지나 추가 정보 설정 가능 (예: Bullet->Damage *= CurrentBurstMultiplier)
+			
 			CurrentAmmo--;
-			LastFireTime = CurrentTime;
-			UE_LOG(LogTemp, Log, TEXT("Fire! Ammo: %d / %d"), CurrentAmmo, MaxAmmo);
-
-			// 발사 후 플레이어의 UI도 함께 갱신해주면 좋습니다.
+			RemainingBurstCount--;
+			
 			UpdatePlayerHUD();
-
-			// 탄약이 방금 다 떨어졌다면 바로 재장전 시작
-			if (CurrentAmmo <= 0)
-			{
-				Reload();
-			}
 		}
+	}
+
+	// 모든 발사를 마쳤으면 타이머 해제
+	if (RemainingBurstCount <= 0)
+	{
+		GetWorldTimerManager().ClearTimer(BurstTimerHandle);
 	}
 }
 

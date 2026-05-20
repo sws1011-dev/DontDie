@@ -48,7 +48,7 @@ void APlayerPawn::BeginPlay()
 			subsys->AddMappingContext(ImcPlayerInput, 0);
 		}
 	}
-	
+
 	if (HUDClass != nullptr)
 	{
 		HUDWidget = CreateWidget<UPlayerHudWidget>(GetWorld(), HUDClass);
@@ -74,7 +74,7 @@ void APlayerPawn::BeginPlay()
 		{
 			FAttachmentTransformRules AttachRules(EAttachmentRule::SnapToTarget, true);
 			CurrentWeapon->AttachToComponent(SkeletalMeshComp, AttachRules, TEXT("WeaponSocket"));
-			
+
 			UpdateAmmoHUD(CurrentWeapon->CurrentAmmo, CurrentWeapon->MaxAmmo);
 		}
 	}
@@ -123,7 +123,8 @@ void APlayerPawn::Fire()
 			DamageMultiplier = 2.0f;
 		}
 
-		CurrentWeapon->Fire(DamageMultiplier);
+		// 무기에 자신의 투사체 개수(ProjectileCount)를 전달하여 점사 발사를 수행합니다.
+		CurrentWeapon->Fire(ProjectileCount, DamageMultiplier);
 	}
 }
 
@@ -197,12 +198,35 @@ void APlayerPawn::DecreaseLife()
 
 void APlayerPawn::RefreshHUD()
 {
-	UE_LOG(LogTemp, Warning, TEXT("RefreshHUD Called!"));
 	ADontDieGameModeBase* GM = Cast<ADontDieGameModeBase>(GetWorld()->GetAuthGameMode());
-	if (GM && HUDWidget)
+
+	if (HUDWidget != nullptr)
 	{
-		float Progress = GM->GetWaveProgress();
-		HUDWidget->UpdateWaveProgress(Progress);
+		// 1. 웨이브 진행도 갱신
+		if (GM != nullptr)
+		{
+			float Progress = GM->GetWaveProgress();
+			HUDWidget->UpdateWaveProgress(Progress);
+			
+			HUDWidget->UpdateWaveStageText(GM->CurrentWave);
+		}
+
+		// 2. 목숨 정보 갱신
+		HUDWidget->UpdateLifeText(CurrentLife);
+
+		// 3. 탄약 정보 갱신
+		if (CurrentWeapon != nullptr)
+		{
+			HUDWidget->UpdateAmmoText(CurrentWeapon->CurrentAmmo, CurrentWeapon->MaxAmmo);
+		}
+
+		// 4. [ADD] 골드 정보 갱신
+		if (GM != nullptr)
+		{
+			HUDWidget->UpdateGoldText(GM->CurrentGold);
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("RefreshHUD: UI Updated (Life: %d)"), CurrentLife);
 	}
 }
 
