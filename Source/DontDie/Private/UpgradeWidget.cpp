@@ -1,4 +1,4 @@
-﻿#include "UpgradeWidget.h"
+#include "UpgradeWidget.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Kismet/GameplayStatics.h"
@@ -9,6 +9,9 @@ void UUpgradeWidget::NativeConstruct()
 
     // 위젯이 키보드/마우스 포커스를 받을 수 있도록 설정
     bIsFocusable = true;
+
+    // 생성 시점의 실제 시간을 기록 (게임 일시정지 중에도 흐르는 시간)
+    InitialSpawnTime = GetWorld()->GetRealTimeSeconds();
 
     // 버튼 클릭 이벤트 바인딩
     if (Btn_OptionA) Btn_OptionA->OnClicked.AddDynamic(this, &UUpgradeWidget::OnOptionAClicked);
@@ -51,6 +54,16 @@ void UUpgradeWidget::OnOptionCClicked() { SelectUpgrade(2); }
 
 void UUpgradeWidget::SelectUpgrade(int32 OptionIndex)
 {
+    // 현재 실제 시간 확인
+    float CurrentTime = GetWorld()->GetRealTimeSeconds();
+    
+    // 클릭 지연 시간이 지나지 않았으면 무시
+    if (CurrentTime - InitialSpawnTime < ClickDelay)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("UpgradeWidget: Click blocked. Time remaining: %f"), ClickDelay - (CurrentTime - InitialSpawnTime));
+        return;
+    }
+
     // 클릭 시점에 인덱스 유효성 체크 및 로그 출력
     if (!CurrentCardTypes.IsValidIndex(OptionIndex))
     {

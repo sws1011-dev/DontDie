@@ -25,3 +25,7 @@ Plugins/Developer/
 # OS specific
 Thumbs.db
 Desktop.ini
+
+# Resources
+Content/Resource/
+

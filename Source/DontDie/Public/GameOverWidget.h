@@ -23,5 +23,29 @@ public:
 	UFUNCTION()
 	void OnRestartClicked();
 	
-	
+	UPROPERTY(meta = (BindWidget))
+	class UButton* ShopButton;
+
+	UPROPERTY(EditAnywhere, Category = "UI")
+	TSubclassOf<class UUserWidget> UpgradeWidgetClass;
+
+	UFUNCTION()
+	void OnShopClicked();
+
+	UPROPERTY(meta = (BindWidget))
+	class UButton* Btn_MainMenu;
+
+	UFUNCTION()
+	void OnMainMenuClicked();
+
+	UPROPERTY(EditAnywhere, Category = "UI")
+	FName MenuLevelName = TEXT("MainMenu");
+
+	UPROPERTY(meta = (BindWidget))
+	class UTextBlock* StageGoldText;
+
+	UPROPERTY(meta = (BindWidget))
+	class UTextBlock* TotalGoldText;
+
+	void SetupResults(int32 StageGold, int32 TotalGold);
 };

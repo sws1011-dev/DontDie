@@ -1,9 +1,10 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "PlayerPawn.h"
 
 #include "DontDieGameModeBase.h"
+#include "GameOverWidget.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "PlayerHudWidget.h"
@@ -77,6 +78,13 @@ void APlayerPawn::BeginPlay()
 
 			UpdateAmmoHUD(CurrentWeapon->CurrentAmmo, CurrentWeapon->MaxAmmo);
 		}
+	}
+
+	// 영구 업그레이드 수치 적용
+	ADontDieGameModeBase* GM = Cast<ADontDieGameModeBase>(UGameplayStatics::GetGameMode(GetWorld()));
+	if (GM)
+	{
+		GM->ApplyPersistentUpgrades(this);
 	}
 }
 
@@ -177,12 +185,23 @@ void APlayerPawn::DecreaseLife()
 
 	if (CurrentLife <= 0)
 	{
+		ADontDieGameModeBase* GM = Cast<ADontDieGameModeBase>(UGameplayStatics::GetGameMode(GetWorld()));
+		int32 EarnedGold = 0;
+		int32 TotalGold = 0;
+		if (GM)
+		{
+			EarnedGold = GM->CurrentGold;
+			GM->FinalizeGold();
+			TotalGold = GM->TotalGold;
+		}
+
 		if (GameOverWidgetClass != nullptr)
 		{
-			UUserWidget* GameOverUI = CreateWidget<UUserWidget>(GetWorld(), GameOverWidgetClass);
+			UGameOverWidget* GameOverUI = CreateWidget<UGameOverWidget>(GetWorld(), GameOverWidgetClass);
 
 			if (GameOverUI != nullptr)
 			{
+				GameOverUI->SetupResults(EarnedGold, TotalGold);
 				GameOverUI->AddToViewport();
 				APlayerController* pc = Cast<APlayerController>(GetWorld()->GetFirstPlayerController());
 				if (pc != nullptr)
@@ -220,7 +239,7 @@ void APlayerPawn::RefreshHUD()
 			HUDWidget->UpdateAmmoText(CurrentWeapon->CurrentAmmo, CurrentWeapon->MaxAmmo);
 		}
 
-		// 4. [ADD] 골드 정보 갱신
+		// 4. 골드 정보 갱신
 		if (GM != nullptr)
 		{
 			HUDWidget->UpdateGoldText(GM->CurrentGold);

@@ -10,9 +10,13 @@
 #include "Blueprint/UserWidget.h"
 #include "Kismet/GameplayStatics.h"
 
+#include "DontDieSaveGame.h"
+
 void ADontDieGameModeBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+	LoadTotalGold();
 
 	if (TargetFactory == nullptr)
 	{
@@ -192,10 +196,122 @@ void ADontDieGameModeBase::MoveToNextWave()
 		UGameplayStatics::SetGamePaused(GetWorld(), false);
 	}
 
-	if (CurrentWave >= MaxWave) return;
+	if (CurrentWave >= MaxWave)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Game Clear! Finalizing Gold."));
+		FinalizeGold();
+		return;
+	}
 
 	CurrentWave++;
 	StartWave();
+}
+
+void ADontDieGameModeBase::FinalizeGold()
+{
+	TotalGold += CurrentGold;
+	SaveTotalGold();
+	
+	UE_LOG(LogTemp, Warning, TEXT("Finalized Gold: %d added. New Total: %d"), CurrentGold, TotalGold);
+	
+	CurrentGold = 0;
+
+	// UI 갱신을 위해 플레이어 HUD 새로고침 호출
+	APlayerController* PC = GetWorld()->GetFirstPlayerController();
+	if (PC)
+	{
+		APlayerPawn* Player = Cast<APlayerPawn>(PC->GetPawn());
+		if (Player) Player->RefreshHUD();
+	}
+}
+
+void ADontDieGameModeBase::LoadTotalGold()
+{
+	if (UGameplayStatics::DoesSaveGameExist(SaveSlotName, 0))
+	{
+		UDontDieSaveGame* SaveGameInstance = Cast<UDontDieSaveGame>(UGameplayStatics::LoadGameFromSlot(SaveSlotName, 0));
+		if (SaveGameInstance)
+		{
+			TotalGold = SaveGameInstance->TotalGold;
+			UpgradeLevels = SaveGameInstance->UpgradeLevels;
+		}
+	}
+	else
+	{
+		TotalGold = 0;
+		UpgradeLevels.Empty();
+	}
+}
+
+void ADontDieGameModeBase::SaveTotalGold()
+{
+	UDontDieSaveGame* SaveGameInstance = Cast<UDontDieSaveGame>(UGameplayStatics::CreateSaveGameObject(UDontDieSaveGame::StaticClass()));
+	if (SaveGameInstance)
+	{
+		SaveGameInstance->TotalGold = TotalGold;
+		SaveGameInstance->UpgradeLevels = UpgradeLevels;
+		UGameplayStatics::SaveGameToSlot(SaveGameInstance, SaveSlotName, 0);
+	}
+}
+
+void ADontDieGameModeBase::ApplyPersistentUpgrades(APlayerPawn* Player)
+{
+	if (!Player) return;
+
+	// 영구 이동 속도
+	if (UpgradeLevels.Contains(TEXT("MoveSpeed")))
+	{
+		Player->MoveSpeed += UpgradeLevels[TEXT("MoveSpeed")] * 20.0f;
+	}
+
+	// 영구 최대 체력
+	if (UpgradeLevels.Contains(TEXT("MaxHP")))
+	{
+		Player->MaxHP += UpgradeLevels[TEXT("MaxHP")] * 10.0f;
+		Player->CurrentHP = Player->MaxHP;
+	}
+
+	// 영구 크리티컬 확률
+	if (UpgradeLevels.Contains(TEXT("CritChance")))
+	{
+		Player->CritChance += UpgradeLevels[TEXT("CritChance")] * 0.02f;
+	}
+
+	// 영구 목숨 추가
+	if (UpgradeLevels.Contains(TEXT("LifeCount")))
+	{
+		Player->CurrentLife += UpgradeLevels[TEXT("LifeCount")];
+	}
+
+	// 영구 골드 배율
+	if (UpgradeLevels.Contains(TEXT("CurrencyMultiplier")))
+	{
+		Player->CurrencyMultiplier += UpgradeLevels[TEXT("CurrencyMultiplier")] * 0.05f;
+	}
+
+	if (Player->CurrentWeapon)
+	{
+		// 영구 데미지
+		if (UpgradeLevels.Contains(TEXT("BaseDamage")))
+		{
+			Player->CurrentWeapon->BaseDamage += UpgradeLevels[TEXT("BaseDamage")] * 2.0f;
+		}
+
+		// 영구 연사 속도
+		if (UpgradeLevels.Contains(TEXT("FireRate")))
+		{
+			Player->CurrentWeapon->FireRate += UpgradeLevels[TEXT("FireRate")] * 0.2f;
+		}
+
+		// 영구 최대 장탄수
+		if (UpgradeLevels.Contains(TEXT("MaxAmmo")))
+		{
+			Player->CurrentWeapon->MaxAmmo += UpgradeLevels[TEXT("MaxAmmo")] * 2;
+			Player->CurrentWeapon->CurrentAmmo = Player->CurrentWeapon->MaxAmmo;
+		}
+	}
+
+	Player->RefreshHUD();
 }
 
 float ADontDieGameModeBase::GetWaveProgress() const

@@ -56,4 +56,8 @@ private:
 
 	// 실제 GameMode에게 선택을 전달하고 자신을 파괴하는 공통 로직
 	void SelectUpgrade(int32 OptionIndex);
+
+	// 클릭 지연을 위한 생성 시점 저장
+	float InitialSpawnTime = 0.0f;
+	const float ClickDelay = 2.0f;
 };

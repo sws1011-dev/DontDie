@@ -102,6 +102,14 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Economy")
 	int32 CurrentGold = 0;
 
+	// 영구 보관되는 전체 재화
+	UPROPERTY(BlueprintReadOnly, Category = "Economy")
+	int32 TotalGold = 0;
+
+	// 영구 업그레이드 레벨 데이터
+	UPROPERTY(BlueprintReadOnly, Category = "Economy")
+	TMap<FString, int32> UpgradeLevels;
+
 	// 민간인 탈출 성공 시 지급할 기본 보상 액수
 	UPROPERTY(EditDefaultsOnly, Category = "Economy")
 	int32 CivilianRescueReward = 100;
@@ -109,4 +117,17 @@ public:
 	// 재화 추가 함수 (민간인 탈출 or 좀비 처치 시 호출)
 	UFUNCTION(BlueprintCallable, Category = "Economy")
 	void AddGold(int32 Amount);
+
+	// 세션 종료 시 현재 골드를 전체 골드에 합산하는 함수
+	UFUNCTION(BlueprintCallable, Category = "Economy")
+	void FinalizeGold();
+
+	// 저장된 영구 업그레이드 수치를 플레이어에게 적용하는 함수
+	UFUNCTION(BlueprintCallable, Category = "Economy")
+	void ApplyPersistentUpgrades(class APlayerPawn* Player);
+
+private:
+	void LoadTotalGold();
+	void SaveTotalGold();
+	const FString SaveSlotName = TEXT("DontDieSaveSlot");
 };
