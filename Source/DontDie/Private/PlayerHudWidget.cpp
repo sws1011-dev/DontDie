@@ -70,3 +70,12 @@ void UPlayerHudWidget::UpdateWaveStageText(int32 CurrentWave)
 		WaveStageText->SetText(FText::FromString(StageString));
 	}
 }
+
+void UPlayerHudWidget::UpdateHPBar(float Percent)
+{
+	if (HPProgressBar != nullptr)
+	{
+		// 0.0f(비어있음) ~ 1.0f(가득참) 사이의 값을 프로그레스 바에 세팅합니다.
+		HPProgressBar->SetPercent(Percent);
+	}
+}

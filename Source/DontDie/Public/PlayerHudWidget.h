@@ -19,6 +19,9 @@ public:
 	class UTextBlock* LifeText;
 
 	UPROPERTY(meta = (BindWidget))
+	class UProgressBar* HPProgressBar;
+
+	UPROPERTY(meta = (BindWidget))
 	class UProgressBar* WaveProgressBar;
 
 	UPROPERTY(meta = (BindWidget))
@@ -35,6 +38,7 @@ public:
 
 	void UpdateAmmoText(int32 CurrentAmmo, int32 MaxAmmo);
 	void UpdateLifeText(int32 CurrentLife);
+	void UpdateHPBar(float Percent);
 	void UpdateWaveProgress(float Percent);
 	void SetReloadingVisibility(bool bIsReloading);
 	void UpdateGoldText(int32 CurrentGold);

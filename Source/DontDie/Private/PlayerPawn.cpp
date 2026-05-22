@@ -22,7 +22,7 @@ APlayerPawn::APlayerPawn()
 	PrimaryActorTick.bCanEverTick = true;
 
 	CapsuleComp = CreateDefaultSubobject<UCapsuleComponent>(TEXT("Capsule Component"));
-	CapsuleComp->InitCapsuleSize(55.f, 95.f);
+	CapsuleComp->InitCapsuleSize(55.f, 140.f);
 	SetRootComponent(CapsuleComp);
 
 	SkeletalMeshComp = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("My Skeletal Mesh Component"));
@@ -36,6 +36,7 @@ void APlayerPawn::BeginPlay()
 	Super::BeginPlay();
 
 	CurrentHP = MaxHP;
+	CurrentLife = LifeCount;
 
 	PlayerController = GetWorld()->GetFirstPlayerController();
 
@@ -174,6 +175,22 @@ void APlayerPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 	}
 }
 
+void APlayerPawn::OnReceiveDamage(float DamageAmount)
+{
+	// 1. 데미지 적용 (HP가 0 이하로 떨어지지 않게 Clamp)
+	CurrentHP = FMath::Clamp(CurrentHP - DamageAmount, 0.0f, MaxHP);
+
+	// HUD가 있다면 HP 바 갱신 (예시: RefreshHUD 호출 혹은 내부 UI 연동)
+	RefreshHUD();
+
+	// 2. HP가 0이 되었는지 체크
+	if (CurrentHP <= 0.0f)
+	{
+		// 목숨 차감 함수 호출
+		DecreaseLife();
+	}
+}
+
 void APlayerPawn::DecreaseLife()
 {
 	CurrentLife = FMath::Max(0, CurrentLife - 1);
@@ -183,7 +200,18 @@ void APlayerPawn::DecreaseLife()
 		HUDWidget->UpdateLifeText(CurrentLife);
 	}
 
-	if (CurrentLife <= 0)
+	if (CurrentLife > 0)
+	{
+		// 1. 목숨이 남아있으므로 체력을 다시 최대치로 리셋(부활)
+		CurrentHP = MaxHP;
+
+		// 2. 변경된 체력과 목숨 정보를 HUD에 즉시 반영
+		RefreshHUD();
+
+		// 필요하다면 여기에 리스폰 무적 시간 처리나 이펙트 코드를 추가할 수 있습니다.
+		UE_LOG(LogTemp, Warning, TEXT("플레이어 사망! 체력 리셋 완료. 남은 목숨: %d"), CurrentLife);
+	}
+	else
 	{
 		ADontDieGameModeBase* GM = Cast<ADontDieGameModeBase>(UGameplayStatics::GetGameMode(GetWorld()));
 		int32 EarnedGold = 0;
@@ -221,31 +249,31 @@ void APlayerPawn::RefreshHUD()
 
 	if (HUDWidget != nullptr)
 	{
-		// 1. 웨이브 진행도 갱신
+		if (MaxHP > 0.0f)
+		{
+			float HPPercent = CurrentHP / MaxHP;
+			HUDWidget->UpdateHPBar(HPPercent);
+		}
+
 		if (GM != nullptr)
 		{
 			float Progress = GM->GetWaveProgress();
 			HUDWidget->UpdateWaveProgress(Progress);
-			
+
 			HUDWidget->UpdateWaveStageText(GM->CurrentWave);
 		}
 
-		// 2. 목숨 정보 갱신
 		HUDWidget->UpdateLifeText(CurrentLife);
 
-		// 3. 탄약 정보 갱신
 		if (CurrentWeapon != nullptr)
 		{
 			HUDWidget->UpdateAmmoText(CurrentWeapon->CurrentAmmo, CurrentWeapon->MaxAmmo);
 		}
 
-		// 4. 골드 정보 갱신
 		if (GM != nullptr)
 		{
 			HUDWidget->UpdateGoldText(GM->CurrentGold);
 		}
-
-		UE_LOG(LogTemp, Log, TEXT("RefreshHUD: UI Updated (Life: %d)"), CurrentLife);
 	}
 }
 

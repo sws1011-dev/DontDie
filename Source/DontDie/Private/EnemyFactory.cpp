@@ -5,6 +5,7 @@
 
 #include "DontDieGameModeBase.h"
 #include "EnemyActor.h"
+#include "SurvivorActor.h"
 #include "Components/BoxComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 // Sets default values
@@ -35,15 +36,36 @@ void AEnemyFactory::SpawnEnemies(int32 Count)
 		);
 		RandomLocation.Z = GetActorLocation().Z;
 
-		AEnemyActor* NewEnemy = GetWorld()->SpawnActor<AEnemyActor>(Enemy, RandomLocation, GetActorRotation());
+		int32 RandomRoll = FMath::RandRange(0, 99);
 
-		if (NewEnemy)
+		if (RandomRoll < SurvivorSpawnChance && SurvivorClass != nullptr)
 		{
-			NewEnemy->MoveSpeed = FMath::RandRange(300.f, 500.f);
-			ADontDieGameModeBase* gamemode = Cast<ADontDieGameModeBase>(GetWorld()->GetAuthGameMode());
-			if (gamemode != nullptr)
+			FActorSpawnParameters SpawnParams;
+			ASurvivorActor* NewSurvivor = GetWorld()->SpawnActor<ASurvivorActor>(
+				SurvivorClass, RandomLocation, GetActorRotation());
+
+			if (NewSurvivor)
 			{
-				gamemode->AddAliveEnemyCount(1);
+				NewSurvivor->MoveSpeed = FMath::RandRange(350.f, 450.f);
+				ADontDieGameModeBase* gamemode = Cast<ADontDieGameModeBase>(GetWorld()->GetAuthGameMode());
+				if (gamemode != nullptr)
+				{
+					gamemode->AddAliveSurvivorCount(1);
+				}
+			}
+		}
+		else
+		{
+			AEnemyActor* NewEnemy = GetWorld()->SpawnActor<AEnemyActor>(Enemy, RandomLocation, GetActorRotation());
+
+			if (NewEnemy)
+			{
+				NewEnemy->MoveSpeed = FMath::RandRange(300.f, 500.f);
+				ADontDieGameModeBase* gamemode = Cast<ADontDieGameModeBase>(GetWorld()->GetAuthGameMode());
+				if (gamemode != nullptr)
+				{
+					gamemode->AddAliveEnemyCount(1);
+				}
 			}
 		}
 	}

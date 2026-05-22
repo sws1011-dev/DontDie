@@ -3,6 +3,7 @@
 #include "DontDieGameModeBase.h"
 #include "EnemyActor.h"
 #include "PlayerPawn.h"
+#include "SurvivorActor.h"
 #include "Components/BoxComponent.h"
 
 
@@ -33,23 +34,36 @@ void AKillZone::OnKillZoneOverlap(UPrimitiveComponent* OverlappedComponent, AAct
 {
 	if (OtherActor == nullptr) return;
 
+	ADontDieGameModeBase* GM = Cast<ADontDieGameModeBase>(GetWorld()->GetAuthGameMode());
+
 	// 1. 적이 킬존에 닿았을 때
 	if (AEnemyActor* Enemy = Cast<AEnemyActor>(OtherActor))
 	{
-		ADontDieGameModeBase* GM = Cast<ADontDieGameModeBase>(GetWorld()->GetAuthGameMode());
 		if (GM)
 		{
 			// 적 숫자를 줄여서 웨이브 종료가 안 되는 현상을 방지
 			GM->OnEnemyKilled();
 		}
+		OtherActor->Destroy();
 	}
 	// 2. 플레이어가 킬존에 닿았을 때
 	else if (APlayerPawn* Player = Cast<APlayerPawn>(OtherActor))
 	{
 		Player->DecreaseLife();
 	}
+	else if (ASurvivorActor* Survivor = Cast<ASurvivorActor>(OtherActor))
+	{
+		if (GM)
+		{
+			// 게임모드에 생존자가 들고 있는 보상 점수(150점)를 더해줍니다.
+			GM->AddGold(Survivor->ScoreReward);
+			
+			GM->OnSurvivorRemoved();
+		}
 
-	OtherActor->Destroy();
+		UE_LOG(LogTemp, Log, TEXT("생존자 구출 성공! 150점 획득."));
+		OtherActor->Destroy();
+	}
 }
 
 

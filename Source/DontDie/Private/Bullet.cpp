@@ -5,6 +5,7 @@
 
 #include "EnemyActor.h"
 #include "PlayerPawn.h"
+#include "SurvivorActor.h"
 #include "Components/BoxComponent.h"
 
 
@@ -19,7 +20,7 @@ ABullet::ABullet()
 
 	FVector boxSize = FVector(20.0f, 5.0f, 5.0f);
 	BoxComp->SetBoxExtent(boxSize);
-	
+
 	MeshComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("My Mesh Component"));
 	MeshComp->SetupAttachment(BoxComp);
 
@@ -46,21 +47,29 @@ void ABullet::OnBulletOverlap(UPrimitiveComponent* OverlappedComponent, AActor* 
                               UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
                               const FHitResult& SweepResult)
 {
-	// 충돌한 상대 액터를 AEnemyActor 클래스로 변환
+	float FinalDamage = 0.0f;
+	APlayerController* pc = GetWorld()->GetFirstPlayerController();
+	if (pc != nullptr)
+	{
+		APlayerPawn* player = Cast<APlayerPawn>(pc->GetPawn());
+		if (player != nullptr)
+		{
+			FinalDamage = player->GetCalculatedDamage();
+		}
+	}
+
 	AEnemyActor* enemy = Cast<AEnemyActor>(OtherActor);
 	if (enemy != nullptr)
 	{
-		// 플레이어 정보를 가져와서 공격력 확인
-		APlayerController* pc = GetWorld()->GetFirstPlayerController();
-		if (pc != nullptr)
+		enemy->TakeDamage(FinalDamage, GetActorLocation());
+	}
+	else
+	{
+		ASurvivorActor* survivor = Cast<ASurvivorActor>(OtherActor);
+		if (survivor != nullptr)
 		{
-			APlayerPawn* player = Cast<APlayerPawn>(pc->GetPawn());
-			if (player != nullptr)
-			{
-				enemy->TakeDamage(player->GetCalculatedDamage(), GetActorLocation());
-			}
+			survivor->TakeDamage(FinalDamage, GetActorLocation());
 		}
 	}
-	// 총알 자신도 제거
 	Destroy();
 }

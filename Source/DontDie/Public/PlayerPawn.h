@@ -28,10 +28,10 @@ public:
 	class AWeapon* CurrentWeapon;
 
 	UPROPERTY(EditAnywhere)
-	float MoveSpeed = 500.f;
+	float MoveSpeed = 300.f;
 
 	UPROPERTY(EditAnywhere)
-	float MaxHP = 100.f;
+	float MaxHP = 30.f;
 
 	UPROPERTY(EditAnywhere)
 	float CurrentHP;
@@ -43,7 +43,7 @@ public:
 	int32 ProjectileCount = 1;
 
 	UPROPERTY(EditAnywhere)
-	int32 LifeCount = 3;
+	int32 LifeCount = 1;
 
 	UPROPERTY(EditAnywhere)
 	float CurrencyMultiplier = 1.0f;
@@ -73,8 +73,9 @@ public:
 	class UPlayerHudWidget* HUDWidget;
 
 	void DecreaseLife();
-
-	int32 CurrentLife = 3;
+	void OnReceiveDamage(float DamageAmount);
+	
+	int32 CurrentLife = 1;
 
 	UFUNCTION(BlueprintCallable)
 	float GetCalculatedDamage();

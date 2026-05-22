@@ -59,5 +59,5 @@ private:
 
 	// 클릭 지연을 위한 생성 시점 저장
 	float InitialSpawnTime = 0.0f;
-	const float ClickDelay = 2.0f;
+	const float ClickDelay = 1.5f;
 };
