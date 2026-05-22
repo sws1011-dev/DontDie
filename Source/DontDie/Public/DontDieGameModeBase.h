@@ -50,7 +50,14 @@ public:
 	virtual void BeginPlay() override;
 
 	int32 CurrentWave = 1;
-	int32 MaxWave = 10;
+	int32 MaxWave = 100;
+
+	// 웨이브가 5씩 진행될 때마다 적용될 좀비 스탯 증가 수치
+	UPROPERTY(EditAnywhere, Category = "Wave System|Scaling")
+	float HealthIncrementPer5Waves = 20.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Wave System|Scaling")
+	float AttackPowerIncrementPer5Waves = 5.0f;
 
 	// 시간 기반 웨이브 변수들
 	float WaveDuration; // 이번 웨이브의 총 제한 시간
@@ -60,6 +67,7 @@ public:
 	int32 TotalEnemiesInWave;
 	int32 RemainingEnemyToSpawn;
 	int32 CurrentAliveEnemyCount;
+	int32 CurrentAliveSurvivorCount = 0;
 
 	FTimerHandle SpawnTimerHandle;
 
@@ -74,8 +82,10 @@ public:
 	TSubclassOf<class UUpgradeWidget> UpgradeWidgetClass;
 
 	void OnEnemyKilled();
+	void OnSurvivorRemoved();
 	void OnEnemyOverlapDestroyed();
 	void AddAliveEnemyCount(int32 Amount);
+	void AddAliveSurvivorCount(int32 Amount);
 	void StartWave();
 	void SpawnZombieGroup();
 
@@ -87,6 +97,11 @@ public:
 
 	// 모든 적이 처치되었는지 확인하고 웨이브를 종료하는 함수
 	void CheckWaveEnd();
+
+	UPROPERTY(EditAnywhere, Category = "Wave System")
+	float WaveEndDelay = 1.5f;
+
+	FTimerHandle WaveEndDelayTimerHandle;
 
 	// 블루프린트 보상 UI에서 선택이 끝나면 호출할 함수
 	UFUNCTION(BlueprintCallable, Category = "Wave System")

@@ -42,6 +42,9 @@ public:
 	UPROPERTY(EditAnywhere)
 	float AttackPower = 10.f;
 
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	float AttackRange = 150.f;
+
 	UPROPERTY(EditAnywhere)
 	int32 TraceRate = 50;
 
@@ -53,10 +56,20 @@ public:
 
 	UPROPERTY(EditAnywhere)
 	class UWidgetComponent* HpWidgetComp;
-	
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	class UAnimMontage* AttackMontage;
+
 	UPROPERTY(Transient)
 	class ADontDieGameModeBase* MyGameMode;
 
+	bool bIsAttacking = false;
+
+
+	void Attack();
+
+	UFUNCTION()
+	void OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
 	void ShowDamage(float DamageAmount, FVector HitLocation);
 
@@ -68,6 +81,9 @@ public:
 	void OnEnemyOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 	                    UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
 	                    const FHitResult& SweepResult);
+	
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void DoHitCheck();
 
 private:
 	FVector dir;

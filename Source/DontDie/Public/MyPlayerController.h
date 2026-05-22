@@ -17,7 +17,21 @@ class DONTDIE_API AMyPlayerController : public APlayerController
 public:
 	UPROPERTY(EditAnywhere)
 	class UInputMappingContext* ImcPlayerInput;
+
+	UPROPERTY(EditAnywhere, Category = "UI")
+	TSubclassOf<class UPauseWidget> PauseWidgetClass;
+
+	UFUNCTION()
+	void TogglePauseMenu();
+
+	void ResumeGame();
 	
 protected:
 	virtual void BeginPlay() override;
+
+	virtual void SetupInputComponent() override;
+
+private:
+	UPROPERTY()
+	class UPauseWidget* CurrentPauseWidget;
 };

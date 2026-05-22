@@ -6,6 +6,7 @@
 #include "Bullet.h"
 #include "PlayerPawn.h"
 #include "Components/ArrowComponent.h"
+#include "Kismet/GameplayStatics.h"
 
 
 // Sets default values
@@ -106,6 +107,20 @@ void AWeapon::ExecuteShot()
 
 		if (Bullet != nullptr)
 		{
+			// 발사 사운드 재생
+			if (FireSound)
+			{
+				// 연사 속도(FireRate)에 맞게 피치 계산
+				// FireRate가 2.0이면 1초에 2발이므로, 한 발당 간격은 0.5초입니다.
+				float TargetDuration = 1.0f / FireRate;
+				float SoundDuration = FireSound->GetDuration();
+				
+				// 사운드 길이가 연사 간격보다 길면 속도를 높임 (피치 증가)
+				float Pitch = (SoundDuration > TargetDuration) ? (SoundDuration / TargetDuration) : 1.0f;
+
+				UGameplayStatics::PlaySoundAtLocation(this, FireSound, GetActorLocation(), FRotator::ZeroRotator, 1.0f, Pitch, FireSoundStartTime);
+			}
+
 			// 데미지나 추가 정보 설정 가능 (예: Bullet->Damage *= CurrentBurstMultiplier)
 			
 			CurrentAmmo--;
@@ -129,6 +144,17 @@ void AWeapon::Reload()
 	bIsReloading = true;
 	UE_LOG(LogTemp, Warning, TEXT("Reload Started... Wait %f sec"), ReloadSpeed);
 
+	// 재장전 사운드 재생
+	if (ReloadSound)
+	{
+		// 재장전 시간(ReloadSpeed)에 맞게 피치 계산
+		float SoundDuration = ReloadSound->GetDuration();
+		
+		// 피치 = 원본 소리 길이 / 목표 재장전 시간
+		float Pitch = SoundDuration / ReloadSpeed;
+
+		UGameplayStatics::PlaySoundAtLocation(this, ReloadSound, GetActorLocation(), FRotator::ZeroRotator, 1.0f, Pitch, ReloadSoundStartTime);
+	}
 
 	APlayerPawn* Player = Cast<APlayerPawn>(GetOwner());
 	if (Player)

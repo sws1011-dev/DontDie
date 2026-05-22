@@ -62,12 +62,18 @@ void ADontDieGameModeBase::StartWave()
 {
 	bIsWaveEnding = false; // 새 웨이브 시작 시 플래그 초기화
 	TimeElapsedInWave = 0.0f;
-	WaveDuration = 5.0f + (CurrentWave * 5.0f);
 
-	// 웨이브 공식: 웨이브마다 5마리씩 증가 (10, 15, 20...)
-	TotalEnemiesInWave = 5 + (CurrentWave * 5);
+	// 10웨이브마다 시간과 스폰 수를 초기화하기 위해 상대적 웨이브 값 계산 (1~10 반복)
+	int32 RelativeWave = ((CurrentWave - 1) % 10) + 1;
+
+	WaveDuration = 5.0f + (RelativeWave * 5.0f);
+
+	// 웨이브 공식: 상대적 웨이브에 따라 스폰 수 결정 (10, 15, 20... 55마리 후 다시 10마리)
+	TotalEnemiesInWave = 5 + (RelativeWave * 5);
 	RemainingEnemyToSpawn = TotalEnemiesInWave;
+
 	CurrentAliveEnemyCount = 0;
+	CurrentAliveSurvivorCount = 0;
 
 	GetWorldTimerManager().SetTimer(WaveTimerHandle, this, &ADontDieGameModeBase::UpdateWaveTimer, 0.1f, true);
 	GetWorldTimerManager().SetTimer(SpawnTimerHandle, this, &ADontDieGameModeBase::SpawnZombieGroup, 2.0f, true);
@@ -75,11 +81,10 @@ void ADontDieGameModeBase::StartWave()
 
 void ADontDieGameModeBase::UpdateWaveTimer()
 {
-	if (bIsWaveEnding) return; // 이미 종료 중이면 계산 중단
+	if (bIsWaveEnding) return;
 
 	TimeElapsedInWave += 0.1f;
 
-	// HUD의 프로그레스 바를 갱신하기 위해 플레이어 폰의 RefreshHUD 호출
 	APlayerController* PC = GetWorld()->GetFirstPlayerController();
 	if (PC)
 	{
@@ -87,7 +92,9 @@ void ADontDieGameModeBase::UpdateWaveTimer()
 		if (Player) Player->RefreshHUD();
 	}
 
-	// [수정] 시간이 다 되면 스폰 타이머만 즉시 중단합니다.
+	// 매 틱(0.1초)마다 종료 조건을 확인하여, 마지막 적이 죽은 후 즉시 반응하도록 합니다.
+	CheckWaveEnd();
+
 	if (TimeElapsedInWave >= WaveDuration)
 	{
 		if (GetWorldTimerManager().IsTimerActive(SpawnTimerHandle))
@@ -96,7 +103,6 @@ void ADontDieGameModeBase::UpdateWaveTimer()
 			UE_LOG(LogTemp, Warning, TEXT("Wave Time Up! Stopping Spawner. Mop up remaining enemies!"));
 		}
 
-		// 스폰이 중단된 상태에서 남은 적이 있는지 확인
 		CheckWaveEnd();
 	}
 }
@@ -106,12 +112,16 @@ void ADontDieGameModeBase::AddAliveEnemyCount(int32 Amount)
 	CurrentAliveEnemyCount += Amount;
 }
 
+void ADontDieGameModeBase::AddAliveSurvivorCount(int32 Amount)
+{
+	CurrentAliveSurvivorCount += Amount;
+}
+
 void ADontDieGameModeBase::OnEnemyKilled()
 {
 	CurrentAliveEnemyCount = FMath::Max(0, CurrentAliveEnemyCount - 1);
 	UE_LOG(LogTemp, Log, TEXT("Enemy Killed. Alive Count: %d"), CurrentAliveEnemyCount);
 
-	// 적 처치 시마다 종료 조건 확인
 	CheckWaveEnd();
 }
 
@@ -120,23 +130,29 @@ void ADontDieGameModeBase::OnEnemyOverlapDestroyed()
 	CurrentAliveEnemyCount = FMath::Max(0, CurrentAliveEnemyCount - 1);
 	UE_LOG(LogTemp, Warning, TEXT("Enemy Detonated on Player. Alive Count: %d"), CurrentAliveEnemyCount);
 
-	// 자폭 시에도 종료 조건 확인
+	CheckWaveEnd();
+}
+
+void ADontDieGameModeBase::OnSurvivorRemoved()
+{
+	CurrentAliveSurvivorCount = FMath::Max(0, CurrentAliveSurvivorCount - 1);
+	UE_LOG(LogTemp, Log, TEXT("Survivor Removed. Alive Survivor Count: %d"), CurrentAliveSurvivorCount);
+
 	CheckWaveEnd();
 }
 
 void ADontDieGameModeBase::CheckWaveEnd()
 {
-	if (bIsWaveEnding) return;
+	// 이미 웨이브 종료 중이거나 타이머가 돌아가고 있다면 무시
+	if (bIsWaveEnding || GetWorldTimerManager().IsTimerActive(WaveEndDelayTimerHandle)) return;
 
-	// 1. 필드에 살아있는 적이 한 마리도 없어야 합니다.
-	if (CurrentAliveEnemyCount <= 0)
+	if (CurrentAliveEnemyCount <= 0 && CurrentAliveSurvivorCount <= 0)
 	{
-		// 2. 그리고 다음 중 하나를 만족해야 합니다:
-		// - 할당된 스폰 개수를 모두 채웠거나 (조기 전멸)
-		// - 시간이 다 되어서 스폰이 강제 중단되었을 때 (시간 종료 후 소탕 완료)
 		if (RemainingEnemyToSpawn <= 0 || TimeElapsedInWave >= WaveDuration)
 		{
-			EndWave();
+			// 즉시 종료하지 않고, 약간의 지연 시간을 두어 사운드나 UI 연출이 끝나게 함
+			GetWorldTimerManager().SetTimer(WaveEndDelayTimerHandle, this, &ADontDieGameModeBase::EndWave, WaveEndDelay, false);
+			UE_LOG(LogTemp, Warning, TEXT("Wave Conditions Met. Ending Wave in %f seconds..."), WaveEndDelay);
 		}
 	}
 }
@@ -164,13 +180,10 @@ void ADontDieGameModeBase::EndWave()
 			UpgradeUI->SetupUpgradeOptions(Options);
 			UpgradeUI->AddToViewport();
 
-			// [해결 핵심] GameAndUI 대신 UIOnly를 사용하여 게임 입력(공격 등)이 클릭을 가로채지 못하게 합니다.
 			if (PC)
 			{
-				// 1. 마우스 커서 활성화
 				PC->SetShowMouseCursor(true);
 
-				// 2. UI 전용 모드로 전환 (위젯에 포커스 강제)
 				FInputModeUIOnly InputMode;
 				InputMode.SetWidgetToFocus(UpgradeUI->TakeWidget());
 				PC->SetInputMode(InputMode);
@@ -198,7 +211,6 @@ void ADontDieGameModeBase::MoveToNextWave()
 
 	if (CurrentWave >= MaxWave)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Game Clear! Finalizing Gold."));
 		FinalizeGold();
 		return;
 	}
@@ -211,9 +223,9 @@ void ADontDieGameModeBase::FinalizeGold()
 {
 	TotalGold += CurrentGold;
 	SaveTotalGold();
-	
+
 	UE_LOG(LogTemp, Warning, TEXT("Finalized Gold: %d added. New Total: %d"), CurrentGold, TotalGold);
-	
+
 	CurrentGold = 0;
 
 	// UI 갱신을 위해 플레이어 HUD 새로고침 호출
@@ -229,7 +241,8 @@ void ADontDieGameModeBase::LoadTotalGold()
 {
 	if (UGameplayStatics::DoesSaveGameExist(SaveSlotName, 0))
 	{
-		UDontDieSaveGame* SaveGameInstance = Cast<UDontDieSaveGame>(UGameplayStatics::LoadGameFromSlot(SaveSlotName, 0));
+		UDontDieSaveGame* SaveGameInstance = Cast<
+			UDontDieSaveGame>(UGameplayStatics::LoadGameFromSlot(SaveSlotName, 0));
 		if (SaveGameInstance)
 		{
 			TotalGold = SaveGameInstance->TotalGold;
@@ -245,7 +258,8 @@ void ADontDieGameModeBase::LoadTotalGold()
 
 void ADontDieGameModeBase::SaveTotalGold()
 {
-	UDontDieSaveGame* SaveGameInstance = Cast<UDontDieSaveGame>(UGameplayStatics::CreateSaveGameObject(UDontDieSaveGame::StaticClass()));
+	UDontDieSaveGame* SaveGameInstance = Cast<UDontDieSaveGame>(
+		UGameplayStatics::CreateSaveGameObject(UDontDieSaveGame::StaticClass()));
 	if (SaveGameInstance)
 	{
 		SaveGameInstance->TotalGold = TotalGold;
@@ -316,7 +330,6 @@ void ADontDieGameModeBase::ApplyPersistentUpgrades(APlayerPawn* Player)
 
 float ADontDieGameModeBase::GetWaveProgress() const
 {
-	// [복구] 처치 숫자가 아닌, 웨이브 설정 시간 대비 흘러간 시간의 비율을 반환합니다.
 	if (WaveDuration <= 0.0f) return 0.0f;
 
 	float Progress = TimeElapsedInWave / WaveDuration;
@@ -330,7 +343,7 @@ TArray<FUpgradeCardData> ADontDieGameModeBase::GenerateUpgradeOptions()
 	TArray<EUpgradeType> AvailablePool;
 
 	AvailablePool.Add(EUpgradeType::MoveSpeed);
-	// AvailablePool.Add(EUpgradeType::MaxHP);
+	AvailablePool.Add(EUpgradeType::MaxHP);
 	AvailablePool.Add(EUpgradeType::CritChance);
 	AvailablePool.Add(EUpgradeType::ProjectileCount);
 	AvailablePool.Add(EUpgradeType::LifeCount);
@@ -344,7 +357,7 @@ TArray<FUpgradeCardData> ADontDieGameModeBase::GenerateUpgradeOptions()
 	{
 		int32 RandomIndex = FMath::RandRange(0, AvailablePool.Num() - 1);
 		EUpgradeType PickedType = AvailablePool[RandomIndex];
-		AvailablePool.RemoveAt(RandomIndex); // 중복 방지
+		AvailablePool.RemoveAt(RandomIndex);
 
 		FUpgradeCardData NewCard;
 		NewCard.UpgradeType = PickedType;
@@ -407,13 +420,9 @@ void ADontDieGameModeBase::ApplyUpgrade(EUpgradeType ChosenUpgrade)
 	APlayerPawn* Player = Cast<APlayerPawn>(PC->GetPawn());
 	if (!Player)
 	{
-		UE_LOG(LogTemp, Error, TEXT("ApplyUpgrade: PlayerPawn is Null!"));
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("ApplyUpgrade: Applying Upgrade Type %d"), (int32)ChosenUpgrade);
-
-	// 4. 선택된 타입에 따라 실제 수치 상승 반영
 	switch (ChosenUpgrade)
 	{
 	case EUpgradeType::MoveSpeed:
@@ -430,7 +439,7 @@ void ADontDieGameModeBase::ApplyUpgrade(EUpgradeType ChosenUpgrade)
 		Player->ProjectileCount += 1;
 		break;
 	case EUpgradeType::LifeCount:
-		Player->CurrentLife += 1; // 실제 게임 로직에서 쓰는 CurrentLife를 증가
+		Player->CurrentLife += 1;
 		break;
 	case EUpgradeType::CurrencyMultiplier:
 		Player->CurrencyMultiplier += 0.15f;
@@ -449,14 +458,12 @@ void ADontDieGameModeBase::ApplyUpgrade(EUpgradeType ChosenUpgrade)
 		}
 		break;
 	case EUpgradeType::ReloadSpeed:
-		if (Player->CurrentWeapon) Player->CurrentWeapon->ReloadSpeed = FMath::Max(
-			0.5f, Player->CurrentWeapon->ReloadSpeed - 0.3f);
+		if (Player->CurrentWeapon)
+			Player->CurrentWeapon->ReloadSpeed = FMath::Max(
+				0.5f, Player->CurrentWeapon->ReloadSpeed - 0.3f);
 		break;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("ApplyUpgrade: Successfully applied. Moving to next wave."));
-
-	// 능력치 적용이 끝났으므로 HUD를 새로고침하고 다음 웨이브로 이동!
 	Player->RefreshHUD();
 	MoveToNextWave();
 }

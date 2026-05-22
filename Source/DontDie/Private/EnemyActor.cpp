@@ -7,7 +7,6 @@
 #include "EnemyDamagedWidget.h"
 #include "EnemyHpWidget.h"
 #include "PlayerPawn.h"
-#include "Components/BoxComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -21,7 +20,7 @@ AEnemyActor::AEnemyActor()
 	PrimaryActorTick.bCanEverTick = true;
 
 	CapsuleComp = CreateDefaultSubobject<UCapsuleComponent>(TEXT("CapsuleComponent"));
-	CapsuleComp->InitCapsuleSize(55.f, 95.f);
+	CapsuleComp->InitCapsuleSize(55.f, 140.f);
 	SetRootComponent(CapsuleComp);
 
 	SkeletalMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("SkeletalMeshComponent"));
@@ -42,6 +41,21 @@ void AEnemyActor::BeginPlay()
 
 	MyGameMode = Cast<ADontDieGameModeBase>(GetWorld()->GetAuthGameMode());
 
+	if (MyGameMode)
+	{
+		// 웨이브가 5씩 진행될 때마다 스탯 증가 (1~5: 기본, 6~10: +1단계, 11~15: +2단계...)
+		int32 ScalingStep = (MyGameMode->CurrentWave - 1) / 5;
+
+		if (ScalingStep > 0)
+		{
+			MaxHP += (ScalingStep * MyGameMode->HealthIncrementPer5Waves);
+			AttackPower += (ScalingStep * MyGameMode->AttackPowerIncrementPer5Waves);
+
+			UE_LOG(LogTemp, Log, TEXT("Enemy Scaled! Wave: %d, HP: %f, Attack: %f"),
+			       MyGameMode->CurrentWave, MaxHP, AttackPower);
+		}
+	}
+
 	CurrentHP = MaxHP;
 
 	APlayerController* pc = GetWorld()->GetFirstPlayerController();
@@ -58,21 +72,6 @@ void AEnemyActor::OnEnemyOverlap(UPrimitiveComponent* OverlappedComponent, AActo
                                  UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
                                  const FHitResult& SweepResult)
 {
-	// 충돌한 상대 액터를 APlayerActor 클래스로 변환
-	APlayerPawn* player = Cast<APlayerPawn>(OtherActor);
-	if (player != nullptr)
-	{
-		// 게임모드에 자폭 소식을 알려 생존 적 숫자를 줄입니다.
-		if (MyGameMode)
-		{
-			MyGameMode->OnEnemyOverlapDestroyed();
-		}
-
-		// 충돌된 플레이어 생명 감소
-		player->DecreaseLife();
-		// 적 자신도 제거
-		Destroy();
-	}
 }
 
 // Called every frame
@@ -80,13 +79,29 @@ void AEnemyActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (TargetPlayer != nullptr)
+	// 1. 타겟 플레이어가 있고, 현재 공격 중이 아닐 때만 로직 수행
+	if (TargetPlayer != nullptr && !bIsAttacking)
 	{
-		dir = TargetPlayer->GetActorLocation() - GetActorLocation();
-		dir.Normalize();
-		FRotator TargetRot = UKismetMathLibrary::FindLookAtRotation(GetActorLocation(),
-		                                                            TargetPlayer->GetActorLocation());
-		SetActorRotation(FRotator(0, TargetRot.Yaw, 0));
+		// 플레이어와의 실제 거리 계산
+		float DistanceToPlayer = FVector::Dist(GetActorLocation(), TargetPlayer->GetActorLocation());
+
+		// 2. 사거리 안에 들어왔는지 검사
+		if (DistanceToPlayer <= AttackRange)
+		{
+			// 이동 방향 벡터를 0으로 만들어 멈추게 하고 공격 실행
+			dir = FVector::ZeroVector;
+			Attack();
+		}
+		else
+		{
+			// 사거리 밖이라면 기존 추적 및 회전 로직 실행
+			dir = TargetPlayer->GetActorLocation() - GetActorLocation();
+			dir.Normalize();
+
+			FRotator TargetRot = UKismetMathLibrary::FindLookAtRotation(
+				GetActorLocation(), TargetPlayer->GetActorLocation());
+			SetActorRotation(FRotator(0, TargetRot.Yaw, 0));
+		}
 	}
 	FVector newLocation = GetActorLocation() + dir * MoveSpeed * DeltaTime;
 	SetActorLocation(newLocation, true);
@@ -144,11 +159,49 @@ void AEnemyActor::UpdateHpUI()
 	UUserWidget* TmpWidget = HpWidgetComp->GetWidget();
 	UEnemyHpWidget* HpBarUI = Cast<UEnemyHpWidget>(TmpWidget);
 
-	// HpBarUI가 null인지 체크하는 로직 추가가 안전합니다.
 	if (HpBarUI != nullptr && MaxHP > 0)
 	{
-		// 실수 연산을 위해 float 보장
 		float HPPercent = (float)CurrentHP / (float)MaxHP;
 		HpBarUI->UpdateHealthBar(HPPercent);
+	}
+}
+
+void AEnemyActor::Attack()
+{
+	if (bIsAttacking || !AttackMontage || !SkeletalMeshComponent) return;
+
+	bIsAttacking = true;
+
+	UAnimInstance* AnimInstance = SkeletalMeshComponent->GetAnimInstance();
+	if (AnimInstance)
+	{
+		// 몽타주 재생
+		AnimInstance->Montage_Play(AttackMontage, 2.5f);
+
+		// 몽타주가 끝났을 때 호출될 함수를 링크(바인딩) 해줍니다.
+		FOnMontageEnded MontageEndedDelegate;
+		MontageEndedDelegate.BindUObject(this, &AEnemyActor::OnAttackMontageEnded);
+		AnimInstance->Montage_SetEndDelegate(MontageEndedDelegate, AttackMontage);
+	}
+}
+
+void AEnemyActor::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+	bIsAttacking = false;
+}
+
+void AEnemyActor::DoHitCheck()
+{
+	if (TargetPlayer != nullptr)
+	{
+		// 때리는 순간 플레이어와의 거리 계산
+		float DistanceToPlayer = FVector::Dist(GetActorLocation(), TargetPlayer->GetActorLocation());
+
+		// 사거리 내에 있다면 즉시 데미지!
+		if (DistanceToPlayer <= 250)
+		{
+			TargetPlayer->OnReceiveDamage(AttackPower);
+			UE_LOG(LogTemp, Log, TEXT("좀비 타격 순간 적중! 데미지: %f"), AttackPower);
+		}
 	}
 }

@@ -28,7 +28,7 @@ public:
 	float BaseDamage = 10.f;
 
 	UPROPERTY(EditAnywhere, Category="Weapon|Stats")
-	float FireRate = 8.f;
+	float FireRate = 1.f;
 
 	UPROPERTY(EditAnywhere, Category="Weapon|Stats")
 	int32 MaxAmmo = 12;
@@ -58,6 +58,18 @@ private:
 
 	UPROPERTY(EditAnywhere, Category="Weapon|Stats")
 	float BurstInterval = 0.1f; // 점사 총알 간 간격 (초)
+
+	UPROPERTY(EditAnywhere, Category = "Weapon|Effects")
+	class USoundBase* FireSound;
+
+	UPROPERTY(EditAnywhere, Category = "Weapon|Effects")
+	float FireSoundStartTime = 0.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Weapon|Effects")
+	class USoundBase* ReloadSound;
+
+	UPROPERTY(EditAnywhere, Category = "Weapon|Effects")
+	float ReloadSoundStartTime = 0.0f;
 
 public:
 	float LastFireTime = 0.f;
