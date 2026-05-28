@@ -1,6 +1,6 @@
 # DontDie — 쿼터뷰 좀비 아포칼립스 슈팅 액션
 
-▶︎ [데모 영상 보기](https://drive.google.com/file/d/1-GNrCtK7QhOcku7y7eoWVm8KVkxpg1jr/view?usp=drive_link) | ▶︎ [상세 보고서 보기](https://docs.google.com/document/d/1ZOtI66oj7ezhdIimEW_edaD1ylrY63SRQjwtXn8Xl9c/edit?usp=sharing) | ▶︎ [실행 파일](https://github.com/sws1011-dev/DontDie/releases)
+▶︎ <a href="https://drive.google.com/file/d/1-GNrCtK7QhOcku7y7eoWVm8KVkxpg1jr/view?usp=drive_link" target="_blank">데모 영상 보기</a> | ▶︎ <a href="https://docs.google.com/document/d/1ZOtI66oj7ezhdIimEW_edaD1ylrY63SRQjwtXn8Xl9c/edit?usp=sharing" target="_blank">상세 보고서 보기</a> | ▶︎ <a href="https://github.com/sws1011-dev/DontDie/releases" target="_blank">실행 파일</a>
 
 <img src="./Gif/DontDie.gif" width="600" alt="DontDie Gameplay">
 
@@ -32,7 +32,7 @@
 - **해결**: 데이터 흐름을 실시간으로 모니터링하여 병목 지점을 파악하고, 연사 배율에 대응하여 재생 피치(Pitch) 및 가속도를 동적으로 보정하는 로직을 적용해 청각적 몰입도를 확보했습니다.
 - **배움**: 사후 검증 단계에서 오차가 없도록 결과물의 무결성을 스스로 모니터링하는 습관이 품질 향상의 핵심임을 깨달았습니다.
 
-→ [상세 트러블슈팅은 프로젝트 보고서 참조](https://docs.google.com/document/d/1ZOtI66oj7ezhdIimEW_edaD1ylrY63SRQjwtXn8Xl9c/edit?usp=sharing)
+→ <a href="https://docs.google.com/document/d/1ZOtI66oj7ezhdIimEW_edaD1ylrY63SRQjwtXn8Xl9c/edit?usp=sharing" target="_blank">상세 트러블슈팅은 프로젝트 보고서 참조</a>
 
 ## 기술 스택
 - **Language**: C++ 20
@@ -45,11 +45,11 @@
 1. `DontDie.uproject` 파일을 우클릭하여 `Generate Visual Studio project files`를 수행합니다.
 2. 생성된 `.sln` 파일을 열어 `Development Editor` 구성에서 빌드합니다.
 
-### 2. 실행 파일(.exe) 생성 (패키징)
+### 3. 실행 파일(.exe) 생성 (패키징)
 1. 언리얼 에디터를 실행합니다.
 2. 상단 메뉴의 **Platforms > Windows > Package Project**를 선택합니다.
 3. 결과물이 저장될 폴더를 지정하면 패키징이 시작됩니다.
 4. 완료 후 지정한 폴더의 `Windows/DontDie.exe`를 통해 게임을 즉시 실행할 수 있습니다.
 
 ## 보고서·문서
-- [프로젝트 진행 보고서](https://docs.google.com/document/d/1ZOtI66oj7ezhdIimEW_edaD1ylrY63SRQjwtXn8Xl9c/edit?usp=sharing) — 기획부터 트러블슈팅까지 전 과정 기록
+- <a href="https://docs.google.com/document/d/1ZOtI66oj7ezhdIimEW_edaD1ylrY63SRQjwtXn8Xl9c/edit?usp=sharing" target="_blank">프로젝트 진행 보고서</a> — 기획부터 트러블슈팅까지 전 과정 기록
