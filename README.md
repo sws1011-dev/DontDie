@@ -1,54 +1,45 @@
-# Don't Die 🧟‍♂️🔫
+# DontDie — 쿼터뷰 좀비 아포칼립스 슈팅 액션
 
-**Don't Die**는 C++ 기반의 언리얼 엔진으로 개발된 **쿼터뷰 좀비 아포칼립스 슈팅 게임**입니다.  
-몰입감 넘치는 전투와 생존, 그리고 성장의 재미를 목표로 제작되었습니다.
+▶︎ [데모 영상 보기](https://drive.google.com/file/d/1-GNrCtK7QhOcku7y7eoWVm8KVkxpg1jr/view?usp=drive_link) | ▶︎ [상세 보고서 보기](https://docs.google.com/document/d/1ZOtI66oj7ezhdIimEW_edaD1ylrY63SRQjwtXn8Xl9c/edit?usp=sharing) | ▶︎ [실행 파일](https://github.com/sws1011-dev/DontDie/releases)
 
----
+<!-- ![DontDie Gameplay](https://dontdie.framer.website/images/hero-image.png) -->
 
-## 🎮 프로젝트 개요
-- **개발 기간:** 2주일 (개인 프로젝트)
-- **개발 인원:** 1명 (기획, 설계, 개발, 테스트)
-- **장르:** 쿼터뷰 아포칼립스 슈팅
-- **기술 스택:** C++ 20, Unreal Engine 5.7+, Rider, Git/GitHub
+## 한 줄 요약
+**장르**: 쿼터뷰 슈팅 / **제작 기간**: 2주 / **사용 기술**: C++ 20, Unreal Engine 5.7.4 / **1인 개발**
 
----
+## 핵심 기능 (3개로 압축)
+1. **동적 조준 및 보정 시스템** — 마우스 2D 좌표를 3D 공간으로 역추적(Deproject)하고, Line Trace를 통해 지형 고저차에 따른 조준선 오차를 실시간으로 보정합니다.
+2. **무기 모듈화 시스템 (Loose Coupling)** — 발사 로직을 캐릭터와 분리하여 독립적인 `AWeapon` 액터로 설계. WeaponSocket 결합 방식을 통해 무기 스왑 및 기능 확장이 용이한 구조를 구축했습니다.
+3. **순환형 웨이브 제어 시스템** — 10웨이브 주기의 난이도 상승 공식과 `WaveTimerHandle`을 활용, 월드 내 잔여 적 수를 체크하여 끊김 없는 게임 루프를 자동 트리거합니다.
 
-## ✨ 핵심 기능
+## 내가 직접 만든 부분
+- **C++ 클래스 설계 및 구현 (100%)**: `APlayerPawn`, `ABullet`, `AWeapon`, `AEnemyFactory` 등 핵심 게임 로직 전체 구현
+- **게임 시스템 로직**: 동적 조준, 발사 메커니즘, BoundingBox 기반 적 스폰, 웨이브/성장 시스템
+- **사용 외부 에셋**: Mixamo (캐릭터/애니메이션), Korboleev (건물), Quixel Megascans (환경 텍스처 및 도로)
 
-### 1. 정밀한 전투 시스템
-- **동적 조준 (Dynamic Aiming):** 마우스의 2D 좌표를 3D 월드 공간으로 실시간 역추적(Deproject)하여 정밀한 사격이 가능합니다. 지형 고저차에 따른 오차는 Line Trace 채널 판정 로직으로 보정하였습니다.
-- **모듈화된 무기 시스템:** 발사 로직을 독립적인 `AWeapon` 액터로 분리하여 **느슨한 결합(Loose Coupling)** 구조로 설계했습니다. 이를 통해 무기 스왑 및 확장이 용이합니다.
-- **투사체 메커니즘:** `ForwardVector` 기반의 독립적 총알 액터를 통해 매 프레임 등속 직선 이동을 수행하며, 충돌 시 치명타 확률을 포함한 데미지를 계산합니다.
+## 기술적 도전 1가지
+**문제**: 연사 속도 상향 시 효과음 출력 시점이 밀리며 오디오 싱크가 어긋나는 현상 발생
+**해결**: 연사 배율에 대응하여 재생 피치(Pitch) 및 가속도를 동적으로 보정하는 로직을 적용하여 청각적 몰입도 확보
+**배움**: 빈번한 리소스 호출 상황에서 하드웨어 부하를 고려한 동적 보정 처리의 중요성을 깨달음
 
-### 2. 성장 및 생존 루프
-- **순환형 웨이브 시스템:** 10웨이브 주기로 적의 스펙과 물량이 강화되는 난이도 제어 시스템을 구축했습니다. 월드 내 좀비 수를 실시간 체크하여 끊김 없는 전투 흐름을 유지합니다.
-- **3지선다 업그레이드:** 웨이브 클리어 시 무작위로 추출되는 3개의 능력치 강화 옵션 중 하나를 선택하여 캐릭터를 성장시킬 수 있습니다.
-- **세이브/로드 시스템:** 플레이어가 획득한 골드 및 능력치 레벨을 로컬(Binary)에 안전하게 저장하고 불러옵니다.
-- **생존자 구출 미션:** 단순 전투에서 벗어나 생존자를 구출하고 호위하는 요소를 도입하여 전략적인 멀티태스킹 재미를 더했습니다.
+→ [상세 트러블슈팅은 프로젝트 보고서 참조](https://docs.google.com/document/d/1ZOtI66oj7ezhdIimEW_edaD1ylrY63SRQjwtXn8Xl9c/edit?usp=sharing)
 
-### 3. 기술적 최적화 및 트러블 슈팅
-- **오디오 싱크 보정:** 연사 속도가 빨라질 때 효과음이 밀리는 현상을 해결하기 위해 발사 간격에 맞춰 재생 피치와 속도를 동적으로 보정했습니다.
-- **UI 포커스 관리:** 업그레이드 UI 표시 시 입력 모드 전환과 포커스 강제화를 통해 상호작용 끊김 문제를 해결했습니다.
+## 기술 스택
+- **Language**: C++ 20
+- **Engine**: Unreal Engine 5.7.4
+- **IDE**: Visual Studio 2022 / Rider
+- **VCS**: Git / GitHub
 
----
+## 빌드 및 패키징 방법
+### 1. 개발 환경 빌드 (C++ 소스 반영)
+1. `DontDie.uproject` 파일을 우클릭하여 `Generate Visual Studio project files`를 수행합니다.
+2. 생성된 `.sln` 파일을 열어 `Development Editor` 구성에서 빌드합니다.
 
-## 🛠 Tech Stack
-- **Engine:** Unreal Engine (C++ 20)
-- **IDE:** JetBrains Rider
-- **Version Control:** Git / GitHub
-- **Assets:** Mixamo (Characters), Korboleev (Buildings), Quixel Megascans (Environments)
+### 2. 실행 파일(.exe) 생성 (패키징)
+1. 언리얼 에디터를 실행합니다.
+2. 상단 메뉴의 **Platforms > Windows > Package Project**를 선택합니다.
+3. 결과물이 저장될 폴더를 지정하면 패키징이 시작됩니다.
+4. 완료 후 지정한 폴더의 `Windows/DontDie.exe`를 통해 게임을 즉시 실행할 수 있습니다.
 
----
-
-## 🚀 Future Roadmap
-- [ ] **데이터 외부화:** 하드코딩된 밸런스 수치를 `UDataTable` 또는 JSON으로 분리하여 유지보수성 향상
-- [ ] **최적화:** 대규모 웨이브 시 성능 확보를 위한 **오브젝트 풀링(Object Pooling)** 시스템 도입
-- [ ] **CI/CD:** Git Flow 도입 및 자동화된 빌드/검증 환경 구축
-
----
-
-## 👤 Developer
-- **이름:** 심우석 (Sim Woo-seok)
-- **이메일:** sws1011.dev@gmail.com
-- **GitHub:** [sws1011-dev](https://github.com/sws1011-dev)
-- **Project Link:** [dontdie.framer.website](https://dontdie.framer.website/)
+## 보고서·문서
+- [프로젝트 진행 보고서](https://docs.google.com/document/d/1ZOtI66oj7ezhdIimEW_edaD1ylrY63SRQjwtXn8Xl9c/edit?usp=sharing) — 기획부터 트러블슈팅까지 전 과정 기록
