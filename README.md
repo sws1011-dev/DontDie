@@ -2,7 +2,7 @@
 
 ▶︎ [데모 영상 보기](https://drive.google.com/file/d/1-GNrCtK7QhOcku7y7eoWVm8KVkxpg1jr/view?usp=drive_link) | ▶︎ [상세 보고서 보기](https://docs.google.com/document/d/1ZOtI66oj7ezhdIimEW_edaD1ylrY63SRQjwtXn8Xl9c/edit?usp=sharing) | ▶︎ [실행 파일](https://github.com/sws1011-dev/DontDie/releases)
 
-![DontDie Gameplay](./Gif/DontDie.gif)
+<img src="./Gif/DontDie.gif" width="600" alt="DontDie Gameplay">
 
 ## 한 줄 요약
 **장르**: 쿼터뷰 슈팅 / **제작 기간**: 2주 / **사용 기술**: C++ 20, Unreal Engine 5.7.4 / **1인 개발**
