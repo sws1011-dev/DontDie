@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "PlayerPawn.h"
+#include "player/PlayerPawn.h"
 
 #include "DontDieGameModeBase.h"
 #include "GameOverWidget.h"
@@ -82,11 +82,11 @@ void APlayerPawn::BeginPlay()
 	}
 
 	// 영구 업그레이드 수치 적용
-	ADontDieGameModeBase* GM = Cast<ADontDieGameModeBase>(UGameplayStatics::GetGameMode(GetWorld()));
-	if (GM)
-	{
-		GM->ApplyPersistentUpgrades(this);
-	}
+	// ADontDieGameModeBase* GM = Cast<ADontDieGameModeBase>(UGameplayStatics::GetGameMode(GetWorld()));
+	// if (GM)
+	// {
+	// 	GM->ApplyPersistentUpgrades(this);
+	// }
 }
 
 // Called every frame

@@ -6,7 +6,7 @@
 #include "DontDieGameModeBase.h"
 #include "EnemyDamagedWidget.h"
 #include "EnemyHpWidget.h"
-#include "PlayerPawn.h"
+#include "player/PlayerCharacter.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -61,7 +61,7 @@ void AEnemyActor::BeginPlay()
 	APlayerController* pc = GetWorld()->GetFirstPlayerController();
 	if (pc != nullptr)
 	{
-		TargetPlayer = Cast<APlayerPawn>(pc->GetPawn());
+		TargetPlayer = Cast<APlayerCharacter>(pc->GetPawn());
 	}
 	dir = GetActorForwardVector();
 

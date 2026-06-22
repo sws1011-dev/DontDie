@@ -4,7 +4,7 @@
 #include "Bullet.h"
 
 #include "EnemyActor.h"
-#include "PlayerPawn.h"
+#include "player/PlayerCharacter.h"
 #include "SurvivorActor.h"
 #include "Components/BoxComponent.h"
 
@@ -51,7 +51,7 @@ void ABullet::OnBulletOverlap(UPrimitiveComponent* OverlappedComponent, AActor* 
 	APlayerController* pc = GetWorld()->GetFirstPlayerController();
 	if (pc != nullptr)
 	{
-		APlayerPawn* player = Cast<APlayerPawn>(pc->GetPawn());
+		APlayerCharacter* player = Cast<APlayerCharacter>(pc->GetPawn());
 		if (player != nullptr)
 		{
 			FinalDamage = player->GetCalculatedDamage();

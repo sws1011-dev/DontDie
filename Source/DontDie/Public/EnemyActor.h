@@ -22,7 +22,7 @@ public:
 	class USkeletalMeshComponent* SkeletalMeshComponent;
 
 	UPROPERTY()
-	class APlayerPawn* TargetPlayer;
+	class APlayerCharacter* TargetPlayer;
 
 	UPROPERTY(EditAnywhere)
 	float MoveSpeed = 600.f;

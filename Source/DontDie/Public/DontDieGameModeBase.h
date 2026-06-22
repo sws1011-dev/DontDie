@@ -139,7 +139,7 @@ public:
 
 	// 저장된 영구 업그레이드 수치를 플레이어에게 적용하는 함수
 	UFUNCTION(BlueprintCallable, Category = "Economy")
-	void ApplyPersistentUpgrades(class APlayerPawn* Player);
+	void ApplyPersistentUpgrades(class APlayerCharacter* Player);
 
 private:
 	void LoadTotalGold();

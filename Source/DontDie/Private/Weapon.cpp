@@ -4,9 +4,10 @@
 #include "Weapon.h"
 
 #include "Bullet.h"
-#include "PlayerPawn.h"
+#include "player/PlayerCharacter.h"
 #include "Components/ArrowComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetMathLibrary.h"
 
 
 // Sets default values
@@ -74,69 +75,87 @@ void AWeapon::StartBurst(int32 Count, float Multiplier)
 
 void AWeapon::ExecuteShot()
 {
-	// 탄약이 없거나 모든 점사를 마쳤으면 중단
-	if (CurrentAmmo <= 0 || RemainingBurstCount <= 0)
-	{
-		RemainingBurstCount = 0;
-		GetWorldTimerManager().ClearTimer(BurstTimerHandle);
-		
-		if (CurrentAmmo <= 0) Reload();
-		return;
-	}
+    if (CurrentAmmo <= 0 || RemainingBurstCount <= 0)
+    {
+       RemainingBurstCount = 0;
+       GetWorldTimerManager().ClearTimer(BurstTimerHandle);
+       if (CurrentAmmo <= 0) Reload();
+       return;
+    }
 
-	// 총알 생성 로직
-	if (BulletFactory)
-	{
-		FVector SpawnLocation = FirePosition->GetComponentLocation();
-		FRotator SpawnRotation = FRotator::ZeroRotator;
-		
-		if (APawn* OwnerPawn = Cast<APawn>(GetOwner()))
-		{
-			SpawnRotation = OwnerPawn->GetActorRotation();
-		}
-		else
-		{
-			SpawnRotation = FirePosition->GetComponentRotation();
-		}
+    if (BulletFactory)
+    {
+       FVector SpawnLocation = FirePosition->GetComponentLocation();
+       FRotator SpawnRotation = FRotator::ZeroRotator;
+       
+       // ---------------- [에임 정중앙 조준 로직 추가] ----------------
+       APlayerController* PC = nullptr;
+       if (APawn* OwnerPawn = Cast<APawn>(GetOwner()))
+       {
+           PC = Cast<APlayerController>(OwnerPawn->GetController());
+       }
 
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.Owner = this;
-		SpawnParams.Instigator = Cast<APawn>(GetOwner());
+       if (PC != nullptr && PC->PlayerCameraManager != nullptr)
+       {
+           // 1. 카메라의 현재 위치와 정면 방향 벡터를 가져옵니다.
+           FVector CameraLocation = PC->PlayerCameraManager->GetCameraLocation();
+           FVector CameraForward = PC->PlayerCameraManager->GetCameraRotation().Vector();
 
-		ABullet* Bullet = GetWorld()->SpawnActor<ABullet>(BulletFactory, SpawnLocation, SpawnRotation, SpawnParams);
+           // 2. 화면 중앙 에임이 도달할 가상의 끝점 (충분히 먼 거리: 10,000 유닛)
+           FVector TraceEnd = CameraLocation + (CameraForward * 10000.0f);
 
-		if (Bullet != nullptr)
-		{
-			// 발사 사운드 재생
-			if (FireSound)
-			{
-				// 연사 속도(FireRate)에 맞게 피치 계산
-				// FireRate가 2.0이면 1초에 2발이므로, 한 발당 간격은 0.5초입니다.
-				float TargetDuration = 1.0f / FireRate;
-				float SoundDuration = FireSound->GetDuration();
-				
-				// 사운드 길이가 연사 간격보다 길면 속도를 높임 (피치 증가)
-				float Pitch = (SoundDuration > TargetDuration) ? (SoundDuration / TargetDuration) : 1.0f;
+           FHitResult HitResult;
+           FCollisionQueryParams TraceParams;
+           TraceParams.AddIgnoredActor(this);          // 무기 자신 무시
+           TraceParams.AddIgnoredActor(GetOwner());    // 플레이어 무시
 
-				UGameplayStatics::PlaySoundAtLocation(this, FireSound, GetActorLocation(), FRotator::ZeroRotator, 1.0f, Pitch, FireSoundStartTime);
-			}
+           // 3. 카메라 정중앙에서 레이저(Line Trace)를 쏩니다.
+           FVector TargetTargetLocation = TraceEnd;
+           if (GetWorld()->LineTraceSingleByChannel(HitResult, CameraLocation, TraceEnd, ECC_Visibility, TraceParams))
+           {
+               // 무언가(벽, 적)에 부딪혔다면 그 충돌 지점을 타겟으로 잡습니다.
+               TargetTargetLocation = HitResult.ImpactPoint;
+           }
 
-			// 데미지나 추가 정보 설정 가능 (예: Bullet->Damage *= CurrentBurstMultiplier)
-			
-			CurrentAmmo--;
-			RemainingBurstCount--;
-			
-			UpdatePlayerHUD();
-		}
-	}
+           // 4. [핵심] 총구 위치에서 레이저가 부딪힌 정중앙 타겟 지점을 바라보는 회전 각도를 계산합니다!
+           SpawnRotation = UKismetMathLibrary::FindLookAtRotation(SpawnLocation, TargetTargetLocation);
+       }
+       else
+       {
+           // 컨트롤러가 없는 AI 등의 예외 상황엔 기존 총구 방향 처리
+           SpawnRotation = FirePosition->GetComponentRotation();
+       }
+       // -------------------------------------------------------------
 
-	// 모든 발사를 마쳤으면 타이머 해제
-	if (RemainingBurstCount <= 0)
-	{
-		GetWorldTimerManager().ClearTimer(BurstTimerHandle);
-	}
+       FActorSpawnParameters SpawnParams;
+       SpawnParams.Owner = this;
+       SpawnParams.Instigator = Cast<APawn>(GetOwner());
+
+       ABullet* Bullet = GetWorld()->SpawnActor<ABullet>(BulletFactory, SpawnLocation, SpawnRotation, SpawnParams);
+
+       if (Bullet != nullptr)
+       {
+          if (FireSound)
+          {
+             float TargetDuration = 1.0f / FireRate;
+             float SoundDuration = FireSound->GetDuration();
+             float Pitch = (SoundDuration > TargetDuration) ? (SoundDuration / TargetDuration) : 1.0f;
+             UGameplayStatics::PlaySoundAtLocation(this, FireSound, GetActorLocation(), FRotator::ZeroRotator, 1.0f, Pitch, FireSoundStartTime);
+          }
+
+          Bullet->BulletDamage = BaseDamage * CurrentBurstMultiplier;
+          CurrentAmmo--;
+          RemainingBurstCount--;
+          
+          UpdatePlayerHUD();
+       }
+    }
+
+    if (RemainingBurstCount <= 0)
+    {
+       GetWorldTimerManager().ClearTimer(BurstTimerHandle);
+    }
 }
-
 void AWeapon::Reload()
 {
 	if (bIsReloading || CurrentAmmo == MaxAmmo) return;
@@ -156,7 +175,7 @@ void AWeapon::Reload()
 		UGameplayStatics::PlaySoundAtLocation(this, ReloadSound, GetActorLocation(), FRotator::ZeroRotator, 1.0f, Pitch, ReloadSoundStartTime);
 	}
 
-	APlayerPawn* Player = Cast<APlayerPawn>(GetOwner());
+	APlayerCharacter* Player = Cast<APlayerCharacter>(GetOwner());
 	if (Player)
 	{
 		Player->UpdateReloadingHUD(true);
@@ -178,7 +197,7 @@ void AWeapon::OnReloadComplete()
 	CurrentAmmo = MaxAmmo;
 	UE_LOG(LogTemp, Warning, TEXT("Reload Complete! Ammo: %d"), CurrentAmmo);
 
-	APlayerPawn* Player = Cast<APlayerPawn>(GetOwner());
+	APlayerCharacter* Player = Cast<APlayerCharacter>(GetOwner());
 	if (Player)
 	{
 		Player->UpdateReloadingHUD(false);
@@ -190,7 +209,7 @@ void AWeapon::OnReloadComplete()
 void AWeapon::UpdatePlayerHUD()
 {
 	// 이 무기의 소유자(Owner)를 플레이어 Pawn으로 캐스팅합니다.
-	APlayerPawn* Player = Cast<APlayerPawn>(GetOwner());
+	APlayerCharacter* Player = Cast<APlayerCharacter>(GetOwner());
 	if (Player != nullptr)
 	{
 		// 플레이어에게 현재 남은 탄약 정보를 넘겨주며 UI 갱신을 요청합니다.

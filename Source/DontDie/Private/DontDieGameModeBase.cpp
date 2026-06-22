@@ -4,13 +4,13 @@
 #include "DontDieGameModeBase.h"
 
 #include "EnemyFactory.h"
-#include "PlayerPawn.h"
 #include "UpgradeWidget.h"
 #include "Weapon.h"
 #include "Blueprint/UserWidget.h"
 #include "Kismet/GameplayStatics.h"
 
 #include "DontDieSaveGame.h"
+#include "player/PlayerCharacter.h"
 
 void ADontDieGameModeBase::BeginPlay()
 {
@@ -49,7 +49,7 @@ void ADontDieGameModeBase::SpawnZombieGroup()
 		APlayerController* PC = GetWorld()->GetFirstPlayerController();
 		if (PC)
 		{
-			APlayerPawn* Player = Cast<APlayerPawn>(PC->GetPawn());
+			APlayerCharacter* Player = Cast<APlayerCharacter>(PC->GetPawn());
 			if (Player)
 			{
 				Player->RefreshHUD();
@@ -88,7 +88,7 @@ void ADontDieGameModeBase::UpdateWaveTimer()
 	APlayerController* PC = GetWorld()->GetFirstPlayerController();
 	if (PC)
 	{
-		APlayerPawn* Player = Cast<APlayerPawn>(PC->GetPawn());
+		APlayerCharacter* Player = Cast<APlayerCharacter>(PC->GetPawn());
 		if (Player) Player->RefreshHUD();
 	}
 
@@ -201,9 +201,9 @@ void ADontDieGameModeBase::MoveToNextWave()
 	if (PC)
 	{
 		// 다시 게임 플레이를 위해 마우스 커서는 유지하되(회전용), 게임 입력도 받도록 설정
-		PC->SetShowMouseCursor(true);
+		PC->SetShowMouseCursor(false);
 
-		FInputModeGameAndUI InputMode;
+		FInputModeGameOnly InputMode;
 		PC->SetInputMode(InputMode);
 
 		UGameplayStatics::SetGamePaused(GetWorld(), false);
@@ -232,7 +232,7 @@ void ADontDieGameModeBase::FinalizeGold()
 	APlayerController* PC = GetWorld()->GetFirstPlayerController();
 	if (PC)
 	{
-		APlayerPawn* Player = Cast<APlayerPawn>(PC->GetPawn());
+		APlayerCharacter* Player = Cast<APlayerCharacter>(PC->GetPawn());
 		if (Player) Player->RefreshHUD();
 	}
 }
@@ -268,7 +268,7 @@ void ADontDieGameModeBase::SaveTotalGold()
 	}
 }
 
-void ADontDieGameModeBase::ApplyPersistentUpgrades(APlayerPawn* Player)
+void ADontDieGameModeBase::ApplyPersistentUpgrades(APlayerCharacter* Player)
 {
 	if (!Player) return;
 
@@ -294,7 +294,7 @@ void ADontDieGameModeBase::ApplyPersistentUpgrades(APlayerPawn* Player)
 	// 영구 목숨 추가
 	if (UpgradeLevels.Contains(TEXT("LifeCount")))
 	{
-		Player->CurrentLife += UpgradeLevels[TEXT("LifeCount")];
+		Player->CurrentLifeCount += UpgradeLevels[TEXT("LifeCount")];
 	}
 
 	// 영구 골드 배율
@@ -417,7 +417,7 @@ void ADontDieGameModeBase::ApplyUpgrade(EUpgradeType ChosenUpgrade)
 	APlayerController* PC = GetWorld()->GetFirstPlayerController();
 	if (!PC) return;
 
-	APlayerPawn* Player = Cast<APlayerPawn>(PC->GetPawn());
+	APlayerCharacter* Player = Cast<APlayerCharacter>(PC->GetPawn());
 	if (!Player)
 	{
 		return;
@@ -439,7 +439,7 @@ void ADontDieGameModeBase::ApplyUpgrade(EUpgradeType ChosenUpgrade)
 		Player->ProjectileCount += 1;
 		break;
 	case EUpgradeType::LifeCount:
-		Player->CurrentLife += 1;
+		Player->CurrentLifeCount += 1;
 		break;
 	case EUpgradeType::CurrencyMultiplier:
 		Player->CurrencyMultiplier += 0.15f;
@@ -477,7 +477,7 @@ void ADontDieGameModeBase::AddGold(int32 Amount)
 	APlayerController* PC = GetWorld()->GetFirstPlayerController();
 	if (PC)
 	{
-		APlayerPawn* Player = Cast<APlayerPawn>(PC->GetPawn());
+		APlayerCharacter* Player = Cast<APlayerCharacter>(PC->GetPawn());
 		if (Player) Player->RefreshHUD();
 	}
 }

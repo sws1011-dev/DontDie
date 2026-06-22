@@ -35,22 +35,29 @@ public:
 	float CurrencyMultiplier = 1.f;
 
 	// 현재 장착 무기
+	UPROPERTY(EditAnywhere, Category="Weapon")
+	TSubclassOf<class AWeapon> DefaultWeaponClass;
+
 	UPROPERTY()
 	class AWeapon* CurrentWeapon;
 
 	/* 입력 */
 	UPROPERTY()
 	class APlayerController* PlayerController;
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	class UInputMappingContext* ImcPlayerInput;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	
+	// 마우스 회전
+	class UInputAction* IaLook;
 	// 이동(W,A,S,D)
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	class UInputAction* IaMove;
 	// 발사(좌클릭)
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	class UInputAction* IaFire;
 	// 장전(R)
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	class UInputAction* IaReload;
 
 	/* UI */
@@ -80,7 +87,7 @@ public:
 	// 데미지 받음
 	void OnReceiveDamage(float DamageAmount);
 	// 데미지를 계산하여 적용
-	void GetCalculatedDamage();
+	float GetCalculatedDamage();
 
 	/* UI 관련 함수 */
 	// 전투 UI 새로고침
@@ -91,14 +98,21 @@ public:
 	void UpdateReloadingHUD(bool bIsReloading);
 
 	/* 입력 관련 함수 */
+	// 카메라 제어
+	void OnInputLook(const struct FInputActionValue& Value);
 	// 이동
-	void OnInputMove(const struct FInputActionValue& value);
+	void OnInputMovement(const struct FInputActionValue& Value);
 	// 발사
 	void Fire();
 	// 재장전
 	void Reload();
 
 private:
-	// 이동 변수
-	FVector2D MoveInput;
+	// 탑다운 카메라의 거리와 각도를 유지해줄 스프링 암
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
+	class USpringArmComponent* SpringArmComp;
+
+	// 실제 화면을 렌더링할 카메라 컴포넌트
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
+	class UCameraComponent* CameraComp;
 };

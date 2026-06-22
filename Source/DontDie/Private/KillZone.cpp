@@ -2,7 +2,7 @@
 
 #include "DontDieGameModeBase.h"
 #include "EnemyActor.h"
-#include "PlayerPawn.h"
+#include "player/PlayerPawn.h"
 #include "SurvivorActor.h"
 #include "Components/BoxComponent.h"
 

@@ -29,6 +29,8 @@ public:
 	UPROPERTY(EditAnywhere)
 	class UStaticMeshComponent* MeshComp;
 
+	float BulletDamage = 0.0f;
+
 	UPROPERTY(EditAnywhere)
 	float MoveSpeed = 2500.f;
 
