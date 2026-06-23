@@ -3,12 +3,12 @@
 
 #include "player/PlayerPawn.h"
 
-#include "DontDieGameModeBase.h"
-#include "GameOverWidget.h"
+#include "gamemode/DontDieGameModeBase.h"
+#include "widget/GameOverWidget.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
-#include "PlayerHudWidget.h"
-#include "Weapon.h"
+#include "widget/PlayerHudWidget.h"
+#include "weapon/Weapon.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/CapsuleComponent.h"
 #include "Kismet/GameplayStatics.h"

@@ -3,12 +3,12 @@
 
 #include "player/PlayerCharacter.h"
 
-#include "DontDieGameModeBase.h"
+#include "gamemode/DontDieGameModeBase.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
-#include "GameOverWidget.h"
-#include "PlayerHudWidget.h"
-#include "Weapon.h"
+#include "widget/GameOverWidget.h"
+#include "widget/PlayerHudWidget.h"
+#include "weapon/Weapon.h"
 #include "Blueprint/UserWidget.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
