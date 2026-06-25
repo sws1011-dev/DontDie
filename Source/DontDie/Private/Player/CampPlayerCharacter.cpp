@@ -3,6 +3,7 @@
 
 #include "player/CampPlayerCharacter.h"
 
+#include "BuildingSelectionComponent.h"
 #include "CampBuildComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -10,7 +11,9 @@
 
 ACampPlayerCharacter::ACampPlayerCharacter()
 {
+	BuildingSelectionComponent = CreateDefaultSubobject<UBuildingSelectionComponent>(TEXT("BuildingSelectionComponent"));
 	CampBuildComponent = CreateDefaultSubobject<UCampBuildComponent>(TEXT("CampBuildComponent"));
+	CampBuildComponent->SetBuildingSelectionComponent(BuildingSelectionComponent);
 }
 
 void ACampPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -43,14 +46,34 @@ void ACampPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 		EnhancedInputComponent->BindAction(IaRotateBuild, ETriggerEvent::Started, this, &ACampPlayerCharacter::RotateBuild);
 	}
 
-	if (IaChangeBuild != nullptr)
+	if (IaChangeBuildType != nullptr)
 	{
-		EnhancedInputComponent->BindAction(IaChangeBuild, ETriggerEvent::Started, this, &ACampPlayerCharacter::ChangeBuild);
+		EnhancedInputComponent->BindAction(IaChangeBuildType, ETriggerEvent::Started, this, &ACampPlayerCharacter::ChangeBuildType);
 	}
 
-	if (IaUpgradeBuild != nullptr)
+	if (IaChangeBuildTier != nullptr)
 	{
-		EnhancedInputComponent->BindAction(IaUpgradeBuild, ETriggerEvent::Triggered, this, &ACampPlayerCharacter::UpgradeBuild);
+		EnhancedInputComponent->BindAction(IaChangeBuildTier, ETriggerEvent::Triggered, this, &ACampPlayerCharacter::ChangeBuildTier);
+	}
+
+	if (IaToggleBuildEditMode != nullptr)
+	{
+		EnhancedInputComponent->BindAction(IaToggleBuildEditMode, ETriggerEvent::Started, this, &ACampPlayerCharacter::ToggleBuildEditMode);
+	}
+
+	if (IaDeleteSelectedBuild != nullptr)
+	{
+		EnhancedInputComponent->BindAction(IaDeleteSelectedBuild, ETriggerEvent::Started, this, &ACampPlayerCharacter::DeleteSelectedBuild);
+	}
+
+	if (IaMoveSelectedBuild != nullptr)
+	{
+		EnhancedInputComponent->BindAction(IaMoveSelectedBuild, ETriggerEvent::Started, this, &ACampPlayerCharacter::MoveSelectedBuild);
+	}
+
+	if (IaEditSelectedBuild != nullptr)
+	{
+		EnhancedInputComponent->BindAction(IaEditSelectedBuild, ETriggerEvent::Started, this, &ACampPlayerCharacter::EditSelectedBuild);
 	}
 }
 
@@ -111,7 +134,7 @@ void ACampPlayerCharacter::RotateBuild(const FInputActionValue& Value)
 	CampBuildComponent->RotatePreview(Direction * CampBuildComponent->RotateStepDegrees);
 }
 
-void ACampPlayerCharacter::ChangeBuild(const FInputActionValue& Value)
+void ACampPlayerCharacter::ChangeBuildType(const FInputActionValue& Value)
 {
 	if (CampBuildComponent == nullptr)
 	{
@@ -127,7 +150,7 @@ void ACampPlayerCharacter::ChangeBuild(const FInputActionValue& Value)
 	CampBuildComponent->ChangeSelectedBuilding(InputValue > 0.0f ? 1 : -1);
 }
 
-void ACampPlayerCharacter::UpgradeBuild(const FInputActionValue& Value)
+void ACampPlayerCharacter::ChangeBuildTier(const FInputActionValue& Value)
 {
 	if (CampBuildComponent == nullptr)
 	{
@@ -141,6 +164,38 @@ void ACampPlayerCharacter::UpgradeBuild(const FInputActionValue& Value)
 	}
 
 	CampBuildComponent->ChangeSelectedTier(InputValue > 0.0f ? 1 : -1);
+}
+
+void ACampPlayerCharacter::ToggleBuildEditMode()
+{
+	if (CampBuildComponent != nullptr)
+	{
+		CampBuildComponent->ToggleBuildEditMode();
+	}
+}
+
+void ACampPlayerCharacter::DeleteSelectedBuild()
+{
+	if (CampBuildComponent != nullptr)
+	{
+		CampBuildComponent->DeleteSelectedBuild();
+	}
+}
+
+void ACampPlayerCharacter::MoveSelectedBuild()
+{
+	if (CampBuildComponent != nullptr)
+	{
+		CampBuildComponent->MoveSelectedBuild();
+	}
+}
+
+void ACampPlayerCharacter::EditSelectedBuild()
+{
+	if (CampBuildComponent != nullptr)
+	{
+		CampBuildComponent->EditSelectedBuild();
+	}
 }
 
 void ACampPlayerCharacter::AddBuildMappingContext()

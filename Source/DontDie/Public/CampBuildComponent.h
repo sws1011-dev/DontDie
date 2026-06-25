@@ -15,6 +15,9 @@ public:
 	// Sets default values for this actor's properties
 	UCampBuildComponent();
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Selection")
+	class UBuildingSelectionComponent* BuildingSelectionComponent = nullptr;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Trace")
 	float CameraTraceDistance = 2000.0f;
 
@@ -42,11 +45,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Data")
 	class UDataTable* BuildingDataTable = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Spawn")
-	TSubclassOf<class ABuildableActor> BuildActorClass;
-
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Rotation")
 	float RotateStepDegrees = 10.0f;
+
+	UFUNCTION(BlueprintCallable, Category = "Build|Selection")
+	void SetBuildingSelectionComponent(class UBuildingSelectionComponent* NewBuildingSelectionComponent);
 
 	UFUNCTION(BlueprintCallable, Category = "Build")
 	void ToggleBuildMode();
@@ -68,6 +71,24 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Build")
 	bool CanPlaceCurrentPreview() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Build")
+	void ToggleBuildEditMode();
+
+	UFUNCTION(BlueprintCallable, Category = "Build")
+	void SetBuildEditMode(bool bEnabled);
+
+	UFUNCTION(BlueprintCallable, Category = "Build")
+	bool IsBuildEditModeEnabled() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Build")
+	bool DeleteSelectedBuild();
+
+	UFUNCTION(BlueprintCallable, Category = "Build")
+	bool MoveSelectedBuild();
+
+	UFUNCTION(BlueprintCallable, Category = "Build")
+	bool EditSelectedBuild();
 
 	UFUNCTION(BlueprintCallable, Category = "Build")
 	bool ConfirmBuild();
@@ -96,29 +117,33 @@ private:
 	bool bHasCurrentTraceHit = false;
 	bool bCanPlaceCurrentPreview = false;
 	bool bSurfacePlacementBlocked = false;
+	bool bBuildEditMode = false;
 	float CurrentBuildYaw = 0.0f;
+
+	UPROPERTY()
+	class ABuildableActor* HoveredBuildableActor = nullptr;
+
+	UPROPERTY()
+	class ABuildableActor* SelectedBuildableActor = nullptr;
 
 	FHitResult CurrentTraceHit;
 	FIntPoint CurrentGridIndex = FIntPoint::ZeroValue;
 	FVector CurrentSnappedLocation = FVector::ZeroVector;
-	FVector CurrentBuildSize = FVector::ZeroVector;
-	TArray<FName> BuildingRowNames;
-	TArray<FName> BuildingTypeIDs;
-	FName CurrentBuildingRowName = NAME_None;
-	FName CurrentBuildingTypeID = NAME_None;
-	int32 SelectedBuildingIndex = INDEX_NONE;
-	int32 CurrentTier = 1;
 
 	void UpdateBuildTrace();
 	bool TraceFromCamera(FHitResult& OutHit) const;
-	void LoadBuildingDataRows();
-	bool SelectBuildingByIndex(int32 BuildingIndex);
-	bool SelectBuildingByRowName(FName RowName);
-	int32 FindBuildingIndexByRowName(FName RowName) const;
-	bool SelectClosestTierForType(FName BuildingTypeID, int32 DesiredTier);
-	bool SelectTierForCurrentType(int32 Tier);
+	void UpdateBuildEditTrace();
+	void SelectHoveredBuildable();
+	void SetHoveredBuildableActor(class ABuildableActor* NewHoveredBuildableActor);
+	void ClearHoveredBuildableActor();
+	void ClearSelectedBuildableActor();
+	class UBuildingSelectionComponent* GetBuildingSelectionComponent();
+	const class UBuildingSelectionComponent* GetBuildingSelectionComponent() const;
+	void SyncLegacyBuildingDataTable();
+	bool SelectInitialBuilding();
 	const struct FBuildingDataRow* GetSelectedBuildingData() const;
 	FVector GetSelectedBuildSize() const;
+	TSubclassOf<class ABuildableActor> GetSelectedBuildActorClass() const;
 	FVector2D GetBuildFootprintSize() const;
 	FVector2D GetGridAlignedFootprintSize() const;
 	FVector2D GetPlacementHalfExtent() const;

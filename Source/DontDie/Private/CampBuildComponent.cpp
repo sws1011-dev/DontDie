@@ -3,10 +3,10 @@
 
 #include "CampBuildComponent.h"
 
+#include "BuildingSelectionComponent.h"
 #include "BuildingDataRow.h"
 #include "BuildableActor.h"
 #include "Camera/PlayerCameraManager.h"
-#include "Engine/DataTable.h"
 #include "Engine/OverlapResult.h"
 #include "Engine/StaticMesh.h"
 #include "GameFramework/Pawn.h"
@@ -24,7 +24,14 @@ void UCampBuildComponent::TickComponent(float DeltaTime, ELevelTick TickType, FA
 
 	if (bBuildMode)
 	{
-		UpdateBuildTrace();
+		if (bBuildEditMode)
+		{
+			UpdateBuildEditTrace();
+		}
+		else
+		{
+			UpdateBuildTrace();
+		}
 	}
 }
 
@@ -42,22 +49,23 @@ void UCampBuildComponent::SetBuildMode(bool bEnabled)
 		bHasCurrentTraceHit = false;
 		bCanPlaceCurrentPreview = false;
 		bSurfacePlacementBlocked = false;
+		bBuildEditMode = false;
+		ClearHoveredBuildableActor();
+		ClearSelectedBuildableActor();
 		DestroyBuildPreviewActor();
 	}
 	else
 	{
-		LoadBuildingDataRows();
-		if (BuildingRowNames.IsValidIndex(SelectedBuildingIndex))
-		{
-			SelectBuildingByIndex(SelectedBuildingIndex);
-		}
-		else if (!BuildingRowNames.IsEmpty())
-		{
-			SelectBuildingByIndex(0);
-		}
+		SyncLegacyBuildingDataTable();
+		SelectInitialBuilding();
 
 		SpawnBuildPreviewActor();
 	}
+}
+
+void UCampBuildComponent::SetBuildingSelectionComponent(UBuildingSelectionComponent* NewBuildingSelectionComponent)
+{
+	BuildingSelectionComponent = NewBuildingSelectionComponent;
 }
 
 bool UCampBuildComponent::IsBuildModeEnabled() const
@@ -85,11 +93,99 @@ bool UCampBuildComponent::CanPlaceCurrentPreview() const
 	return bCanPlaceCurrentPreview;
 }
 
+void UCampBuildComponent::ToggleBuildEditMode()
+{
+	SetBuildEditMode(!bBuildEditMode);
+}
+
+void UCampBuildComponent::SetBuildEditMode(bool bEnabled)
+{
+	if (!bBuildMode || bBuildEditMode == bEnabled)
+	{
+		return;
+	}
+
+	bBuildEditMode = bEnabled;
+	if (bBuildEditMode)
+	{
+		bHasCurrentTraceHit = false;
+		bCanPlaceCurrentPreview = false;
+		DestroyBuildPreviewActor();
+	}
+	else
+	{
+		ClearHoveredBuildableActor();
+		ClearSelectedBuildableActor();
+		SpawnBuildPreviewActor();
+		UpdateBuildPreviewActor();
+	}
+}
+
+bool UCampBuildComponent::IsBuildEditModeEnabled() const
+{
+	return bBuildEditMode;
+}
+
+bool UCampBuildComponent::DeleteSelectedBuild()
+{
+	if (!bBuildMode || !bBuildEditMode)
+	{
+		return false;
+	}
+
+	ABuildableActor* DeleteTarget = SelectedBuildableActor != nullptr ? SelectedBuildableActor : HoveredBuildableActor;
+	if (DeleteTarget == nullptr)
+	{
+		return false;
+	}
+
+	if (DeleteTarget == HoveredBuildableActor)
+	{
+		HoveredBuildableActor = nullptr;
+	}
+	if (DeleteTarget == SelectedBuildableActor)
+	{
+		SelectedBuildableActor = nullptr;
+	}
+
+	DeleteTarget->SetDemolitionPreview(false);
+	DeleteTarget->Destroy();
+	return true;
+}
+
+bool UCampBuildComponent::MoveSelectedBuild()
+{
+	if (!bBuildMode || !bBuildEditMode)
+	{
+		return false;
+	}
+
+	SelectHoveredBuildable();
+	return SelectedBuildableActor != nullptr;
+}
+
+bool UCampBuildComponent::EditSelectedBuild()
+{
+	if (!bBuildMode || !bBuildEditMode)
+	{
+		return false;
+	}
+
+	SelectHoveredBuildable();
+	return SelectedBuildableActor != nullptr;
+}
+
 bool UCampBuildComponent::ConfirmBuild()
 {
 	if (!bBuildMode)
 	{
 		return false;
+	}
+
+	if (bBuildEditMode)
+	{
+		SelectHoveredBuildable();
+		return SelectedBuildableActor != nullptr;
 	}
 
 	if (!bHasCurrentTraceHit)
@@ -102,7 +198,7 @@ bool UCampBuildComponent::ConfirmBuild()
 		return false;
 	}
 
-	if (BuildActorClass == nullptr)
+	if (GetSelectedBuildActorClass() == nullptr)
 	{
 		return false;
 	}
@@ -129,6 +225,11 @@ void UCampBuildComponent::CancelBuild()
 
 void UCampBuildComponent::RotatePreview(float YawDelta)
 {
+	if (bBuildEditMode)
+	{
+		return;
+	}
+
 	CurrentBuildYaw = FMath::Fmod(CurrentBuildYaw + YawDelta, 360.0f);
 	if (CurrentBuildYaw < 0.0f)
 	{
@@ -140,60 +241,40 @@ void UCampBuildComponent::RotatePreview(float YawDelta)
 
 void UCampBuildComponent::ChangeSelectedBuilding(int32 Direction)
 {
-	if (Direction == 0)
+	if (bBuildEditMode)
 	{
 		return;
 	}
 
-	if (BuildingRowNames.IsEmpty())
-	{
-		LoadBuildingDataRows();
-	}
-
-	if (BuildingTypeIDs.IsEmpty())
+	UBuildingSelectionComponent* SelectionComponent = GetBuildingSelectionComponent();
+	if (SelectionComponent == nullptr)
 	{
 		return;
 	}
 
-	if (BuildingTypeIDs.Num() <= 1)
-	{
-		return;
-	}
-
-	int32 CurrentTypeIndex = BuildingTypeIDs.IndexOfByKey(CurrentBuildingTypeID);
-	if (CurrentTypeIndex == INDEX_NONE)
-	{
-		CurrentTypeIndex = 0;
-	}
-	const int32 Step = Direction > 0 ? 1 : -1;
-	const int32 NextTypeIndex = (CurrentTypeIndex + Step + BuildingTypeIDs.Num()) % BuildingTypeIDs.Num();
-	SelectClosestTierForType(BuildingTypeIDs[NextTypeIndex], CurrentTier);
+	SelectionComponent->ChangeSelectedBuilding(Direction);
+	DestroyBuildPreviewActor();
+	SpawnBuildPreviewActor();
+	UpdateBuildPreviewActor();
 }
 
 void UCampBuildComponent::ChangeSelectedTier(int32 Direction)
 {
-	if (Direction == 0)
+	if (bBuildEditMode)
 	{
 		return;
 	}
 
-	if (BuildingRowNames.IsEmpty())
-	{
-		LoadBuildingDataRows();
-	}
-
-	if (BuildingDataTable == nullptr || CurrentBuildingRowName.IsNone() || CurrentBuildingTypeID.IsNone())
+	UBuildingSelectionComponent* SelectionComponent = GetBuildingSelectionComponent();
+	if (SelectionComponent == nullptr)
 	{
 		return;
 	}
 
-	if (GetSelectedBuildingData() == nullptr)
-	{
-		return;
-	}
-
-	const int32 NextTier = CurrentTier + (Direction > 0 ? 1 : -1);
-	SelectTierForCurrentType(NextTier);
+	SelectionComponent->ChangeSelectedTier(Direction);
+	DestroyBuildPreviewActor();
+	SpawnBuildPreviewActor();
+	UpdateBuildPreviewActor();
 }
 
 void UCampBuildComponent::UpdateBuildTrace()
@@ -242,180 +323,113 @@ bool UCampBuildComponent::TraceFromCamera(FHitResult& OutHit) const
 	return World->LineTraceSingleByChannel(OutHit, TraceStart, TraceEnd, BuildTraceChannel, QueryParams);
 }
 
-void UCampBuildComponent::LoadBuildingDataRows()
+void UCampBuildComponent::UpdateBuildEditTrace()
 {
-	BuildingRowNames.Empty();
-	BuildingTypeIDs.Empty();
+	FHitResult HitResult;
+	const bool bHit = TraceFromCamera(HitResult);
+	ABuildableActor* HitBuildableActor = bHit ? Cast<ABuildableActor>(HitResult.GetActor()) : nullptr;
 
-	if (BuildingDataTable == nullptr)
+	SetHoveredBuildableActor(HitBuildableActor);
+	bHasCurrentTraceHit = HitBuildableActor != nullptr;
+	if (bHasCurrentTraceHit)
 	{
-		SelectedBuildingIndex = INDEX_NONE;
-		CurrentBuildingRowName = NAME_None;
-		CurrentBuildingTypeID = NAME_None;
-		CurrentTier = 1;
-		CurrentBuildSize = FVector::ZeroVector;
+		CurrentTraceHit = HitResult;
+	}
+}
+
+void UCampBuildComponent::SelectHoveredBuildable()
+{
+	SelectedBuildableActor = HoveredBuildableActor;
+}
+
+void UCampBuildComponent::SetHoveredBuildableActor(ABuildableActor* NewHoveredBuildableActor)
+{
+	if (HoveredBuildableActor == NewHoveredBuildableActor)
+	{
 		return;
 	}
 
-	BuildingRowNames = BuildingDataTable->GetRowNames();
-
-	for (int32 Index = 0; Index < BuildingRowNames.Num(); ++Index)
+	ClearHoveredBuildableActor();
+	HoveredBuildableActor = NewHoveredBuildableActor;
+	if (HoveredBuildableActor != nullptr)
 	{
-		const FName RowName = BuildingRowNames[Index];
-		const FBuildingDataRow* BuildingData = BuildingDataTable->FindRow<FBuildingDataRow>(RowName, TEXT("CampBuildComponent::LoadBuildingDataRows"));
-		if (BuildingData == nullptr)
-		{
-			continue;
-		}
-
-		if (!BuildingData->BuildingTypeID.IsNone() && !BuildingTypeIDs.Contains(BuildingData->BuildingTypeID))
-		{
-			BuildingTypeIDs.Add(BuildingData->BuildingTypeID);
-		}
-	}
-
-	if (BuildingRowNames.IsEmpty())
-	{
-		SelectedBuildingIndex = INDEX_NONE;
-		CurrentBuildingRowName = NAME_None;
-		CurrentBuildingTypeID = NAME_None;
-		CurrentTier = 1;
-		CurrentBuildSize = FVector::ZeroVector;
+		HoveredBuildableActor->SetDemolitionPreview(true);
 	}
 }
 
-bool UCampBuildComponent::SelectBuildingByIndex(int32 BuildingIndex)
+void UCampBuildComponent::ClearHoveredBuildableActor()
 {
-	if (BuildingDataTable == nullptr || !BuildingRowNames.IsValidIndex(BuildingIndex))
+	if (HoveredBuildableActor != nullptr)
+	{
+		HoveredBuildableActor->SetDemolitionPreview(false);
+		HoveredBuildableActor = nullptr;
+	}
+}
+
+void UCampBuildComponent::ClearSelectedBuildableActor()
+{
+	SelectedBuildableActor = nullptr;
+}
+
+UBuildingSelectionComponent* UCampBuildComponent::GetBuildingSelectionComponent()
+{
+	if (BuildingSelectionComponent == nullptr)
+	{
+		BuildingSelectionComponent = GetOwner() != nullptr ? GetOwner()->FindComponentByClass<UBuildingSelectionComponent>() : nullptr;
+	}
+
+	return BuildingSelectionComponent;
+}
+
+const UBuildingSelectionComponent* UCampBuildComponent::GetBuildingSelectionComponent() const
+{
+	return BuildingSelectionComponent != nullptr
+		? BuildingSelectionComponent
+		: (GetOwner() != nullptr ? GetOwner()->FindComponentByClass<UBuildingSelectionComponent>() : nullptr);
+}
+
+void UCampBuildComponent::SyncLegacyBuildingDataTable()
+{
+	UBuildingSelectionComponent* SelectionComponent = GetBuildingSelectionComponent();
+	if (SelectionComponent != nullptr && SelectionComponent->BuildingDataTable == nullptr)
+	{
+		SelectionComponent->BuildingDataTable = BuildingDataTable;
+	}
+}
+
+bool UCampBuildComponent::SelectInitialBuilding()
+{
+	UBuildingSelectionComponent* SelectionComponent = GetBuildingSelectionComponent();
+	if (SelectionComponent == nullptr)
 	{
 		return false;
 	}
 
-	const FName RowName = BuildingRowNames[BuildingIndex];
-	const FBuildingDataRow* BuildingData = BuildingDataTable->FindRow<FBuildingDataRow>(RowName, TEXT("CampBuildComponent::SelectBuildingByIndex"));
-	if (BuildingData == nullptr)
+	SelectionComponent->LoadBuildingDataRows();
+	if (SelectionComponent->GetBuildingRowNames().IsValidIndex(SelectionComponent->GetSelectedBuildingIndex()))
 	{
-		return false;
+		return SelectionComponent->SelectBuildingByIndex(SelectionComponent->GetSelectedBuildingIndex());
 	}
 
-	TSubclassOf<ABuildableActor> LoadedBuildActorClass = BuildingData->BuildActorClass.LoadSynchronous();
-	if (LoadedBuildActorClass == nullptr)
-	{
-		return false;
-	}
-
-	SelectedBuildingIndex = BuildingIndex;
-	CurrentBuildingRowName = RowName;
-	CurrentBuildingTypeID = BuildingData->BuildingTypeID;
-	CurrentTier = FMath::Max(BuildingData->Tier, 1);
-	BuildActorClass = LoadedBuildActorClass;
-	CurrentBuildSize = FVector(
-		FMath::Max(BuildingData->SizeX, 1.0f),
-		FMath::Max(BuildingData->SizeY, 1.0f),
-		FMath::Max(BuildingData->SizeZ, 1.0f));
-
-	if (CurrentPreviewActor != nullptr)
-	{
-		DestroyBuildPreviewActor();
-		SpawnBuildPreviewActor();
-	}
-
-	return true;
-}
-
-bool UCampBuildComponent::SelectBuildingByRowName(FName RowName)
-{
-	const int32 BuildingIndex = FindBuildingIndexByRowName(RowName);
-	if (BuildingIndex == INDEX_NONE)
-	{
-		return false;
-	}
-
-	return SelectBuildingByIndex(BuildingIndex);
-}
-
-int32 UCampBuildComponent::FindBuildingIndexByRowName(FName RowName) const
-{
-	return BuildingRowNames.IndexOfByKey(RowName);
-}
-
-bool UCampBuildComponent::SelectClosestTierForType(FName BuildingTypeID, int32 DesiredTier)
-{
-	int32 BestIndex = INDEX_NONE;
-	int32 BestTierDistance = MAX_int32;
-	int32 BestTier = MAX_int32;
-
-	for (int32 Index = 0; Index < BuildingRowNames.Num(); ++Index)
-	{
-		const FBuildingDataRow* BuildingData = BuildingDataTable != nullptr
-			? BuildingDataTable->FindRow<FBuildingDataRow>(BuildingRowNames[Index], TEXT("CampBuildComponent::SelectClosestTierForType"))
-			: nullptr;
-		if (BuildingData == nullptr || BuildingData->BuildingTypeID != BuildingTypeID)
-		{
-			continue;
-		}
-
-		const int32 TierDistance = FMath::Abs(BuildingData->Tier - DesiredTier);
-		const bool bBetterDistance = TierDistance < BestTierDistance;
-		const bool bSameDistanceLowerTier = TierDistance == BestTierDistance && BuildingData->Tier < BestTier;
-		if (bBetterDistance || bSameDistanceLowerTier)
-		{
-			BestIndex = Index;
-			BestTierDistance = TierDistance;
-			BestTier = BuildingData->Tier;
-		}
-	}
-
-	return BestIndex != INDEX_NONE && SelectBuildingByIndex(BestIndex);
-}
-
-bool UCampBuildComponent::SelectTierForCurrentType(int32 Tier)
-{
-	if (Tier < 1)
-	{
-		return false;
-	}
-
-	for (int32 Index = 0; Index < BuildingRowNames.Num(); ++Index)
-	{
-		const FBuildingDataRow* BuildingData = BuildingDataTable != nullptr
-			? BuildingDataTable->FindRow<FBuildingDataRow>(BuildingRowNames[Index], TEXT("CampBuildComponent::SelectTierForCurrentType"))
-			: nullptr;
-		if (BuildingData != nullptr && BuildingData->BuildingTypeID == CurrentBuildingTypeID && BuildingData->Tier == Tier)
-		{
-			return SelectBuildingByIndex(Index);
-		}
-	}
-
-	return false;
+	return !SelectionComponent->GetBuildingRowNames().IsEmpty() && SelectionComponent->SelectBuildingByIndex(0);
 }
 
 const FBuildingDataRow* UCampBuildComponent::GetSelectedBuildingData() const
 {
-	if (BuildingDataTable == nullptr || CurrentBuildingRowName.IsNone())
-	{
-		return nullptr;
-	}
-
-	return BuildingDataTable->FindRow<FBuildingDataRow>(CurrentBuildingRowName, TEXT("CampBuildComponent::GetSelectedBuildingData"));
+	const UBuildingSelectionComponent* SelectionComponent = GetBuildingSelectionComponent();
+	return SelectionComponent != nullptr ? SelectionComponent->GetSelectedBuildingData() : nullptr;
 }
 
 FVector UCampBuildComponent::GetSelectedBuildSize() const
 {
-	if (!CurrentBuildSize.IsNearlyZero())
-	{
-		return CurrentBuildSize;
-	}
+	const UBuildingSelectionComponent* SelectionComponent = GetBuildingSelectionComponent();
+	return SelectionComponent != nullptr ? SelectionComponent->GetSelectedBuildSize() : FVector::ZeroVector;
+}
 
-	if (const FBuildingDataRow* BuildingData = GetSelectedBuildingData())
-	{
-		return FVector(
-			FMath::Max(BuildingData->SizeX, 1.0f),
-			FMath::Max(BuildingData->SizeY, 1.0f),
-			FMath::Max(BuildingData->SizeZ, 1.0f));
-	}
-
-	return FVector::ZeroVector;
+TSubclassOf<ABuildableActor> UCampBuildComponent::GetSelectedBuildActorClass() const
+{
+	const UBuildingSelectionComponent* SelectionComponent = GetBuildingSelectionComponent();
+	return SelectionComponent != nullptr ? SelectionComponent->GetSelectedBuildActorClass() : nullptr;
 }
 
 FVector2D UCampBuildComponent::GetBuildFootprintSize() const
@@ -426,7 +440,8 @@ FVector2D UCampBuildComponent::GetBuildFootprintSize() const
 		return FVector2D(SelectedBuildSize.X, SelectedBuildSize.Y);
 	}
 
-	const ABuildableActor* BuildDefault = BuildActorClass != nullptr ? BuildActorClass->GetDefaultObject<ABuildableActor>() : nullptr;
+	const TSubclassOf<ABuildableActor> SelectedBuildActorClass = GetSelectedBuildActorClass();
+	const ABuildableActor* BuildDefault = SelectedBuildActorClass != nullptr ? SelectedBuildActorClass->GetDefaultObject<ABuildableActor>() : nullptr;
 	if (BuildDefault != nullptr)
 	{
 		return FVector2D(
@@ -460,7 +475,8 @@ float UCampBuildComponent::GetPlacementBoxHalfHeight() const
 		return FMath::Max(SelectedBuildSize.Z * 0.5f, 1.0f);
 	}
 
-	const ABuildableActor* BuildDefault = BuildActorClass != nullptr ? BuildActorClass->GetDefaultObject<ABuildableActor>() : nullptr;
+	const TSubclassOf<ABuildableActor> SelectedBuildActorClass = GetSelectedBuildActorClass();
+	const ABuildableActor* BuildDefault = SelectedBuildActorClass != nullptr ? SelectedBuildActorClass->GetDefaultObject<ABuildableActor>() : nullptr;
 	return BuildDefault != nullptr ? FMath::Max(BuildDefault->PlacementBoxHalfHeight, 1.0f) : 100.0f;
 }
 
@@ -472,7 +488,8 @@ float UCampBuildComponent::GetBuildActorHalfHeight() const
 		return FMath::Max(SelectedBuildSize.Z * 0.5f, 0.0f);
 	}
 
-	const ABuildableActor* BuildDefault = BuildActorClass != nullptr ? BuildActorClass->GetDefaultObject<ABuildableActor>() : nullptr;
+	const TSubclassOf<ABuildableActor> SelectedBuildActorClass = GetSelectedBuildActorClass();
+	const ABuildableActor* BuildDefault = SelectedBuildActorClass != nullptr ? SelectedBuildActorClass->GetDefaultObject<ABuildableActor>() : nullptr;
 	return BuildDefault != nullptr ? FMath::Max(BuildDefault->ActorHalfHeight, 0.0f) : 50.0f;
 }
 
@@ -641,7 +658,8 @@ void UCampBuildComponent::UpdatePlacementBoxTrace()
 
 void UCampBuildComponent::SpawnBuildPreviewActor()
 {
-	if (CurrentPreviewActor != nullptr || BuildActorClass == nullptr)
+	const TSubclassOf<ABuildableActor> SelectedBuildActorClass = GetSelectedBuildActorClass();
+	if (CurrentPreviewActor != nullptr || SelectedBuildActorClass == nullptr)
 	{
 		return;
 	}
@@ -656,7 +674,7 @@ void UCampBuildComponent::SpawnBuildPreviewActor()
 	SpawnParams.Owner = GetOwner();
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	CurrentPreviewActor = World->SpawnActor<ABuildableActor>(BuildActorClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+	CurrentPreviewActor = World->SpawnActor<ABuildableActor>(SelectedBuildActorClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
 	if (CurrentPreviewActor != nullptr)
 	{
 		const FVector SelectedBuildSize = GetSelectedBuildSize();

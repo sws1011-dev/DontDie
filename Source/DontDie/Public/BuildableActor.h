@@ -42,6 +42,9 @@ public:
 	void SetPlacementValid(bool bIsValid);
 
 	UFUNCTION(BlueprintCallable, Category = "Build")
+	void SetDemolitionPreview(bool bEnabled);
+
+	UFUNCTION(BlueprintCallable, Category = "Build")
 	void FinalizeBuild();
 
 	UFUNCTION(BlueprintCallable, Category = "Build")
@@ -57,6 +60,7 @@ public:
 
 private:
 	bool bPreviewMode = false;
+	bool bDemolitionPreview = false;
 	TMap<class UMeshComponent*, TArray<class UMaterialInterface*>> OriginalMaterials;
 
 	void CacheOriginalMaterials();

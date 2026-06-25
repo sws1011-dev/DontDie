@@ -18,6 +18,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
 	class UCampBuildComponent* CampBuildComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
+	class UBuildingSelectionComponent* BuildingSelectionComponent;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Mapping")
 	class UInputMappingContext* ImcBuild;
 
@@ -34,10 +37,22 @@ public:
 	class UInputAction* IaRotateBuild;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Build")
-	class UInputAction* IaChangeBuild;
+	class UInputAction* IaChangeBuildType;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Build")
-	class UInputAction* IaUpgradeBuild;
+	class UInputAction* IaChangeBuildTier;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Build")
+	class UInputAction* IaToggleBuildEditMode;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Build")
+	class UInputAction* IaDeleteSelectedBuild;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Build")
+	class UInputAction* IaMoveSelectedBuild;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Build")
+	class UInputAction* IaEditSelectedBuild;
 
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
@@ -48,8 +63,12 @@ private:
 	void ConfirmBuild();
 	void CancelBuild();
 	void RotateBuild(const struct FInputActionValue& Value);
-	void ChangeBuild(const struct FInputActionValue& Value);
-	void UpgradeBuild(const struct FInputActionValue& Value);
+	void ChangeBuildType(const struct FInputActionValue& Value);
+	void ChangeBuildTier(const struct FInputActionValue& Value);
+	void ToggleBuildEditMode();
+	void DeleteSelectedBuild();
+	void MoveSelectedBuild();
+	void EditSelectedBuild();
 	void AddBuildMappingContext();
 	void RemoveBuildMappingContext();
 };

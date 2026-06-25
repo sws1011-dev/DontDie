@@ -72,6 +72,25 @@ void ABuildableActor::SetPlacementValid(bool bIsValid)
 	ApplyMaterial(bIsValid ? ValidPreviewMaterial : InvalidPreviewMaterial);
 }
 
+void ABuildableActor::SetDemolitionPreview(bool bEnabled)
+{
+	if (bPreviewMode || bDemolitionPreview == bEnabled)
+	{
+		return;
+	}
+
+	bDemolitionPreview = bEnabled;
+	if (bDemolitionPreview)
+	{
+		CacheOriginalMaterials();
+		ApplyMaterial(InvalidPreviewMaterial);
+	}
+	else
+	{
+		RestoreOriginalMaterials();
+	}
+}
+
 void ABuildableActor::FinalizeBuild()
 {
 	SetPreviewMode(false);
