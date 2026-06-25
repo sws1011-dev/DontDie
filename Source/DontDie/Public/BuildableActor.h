@@ -14,26 +14,26 @@ class DONTDIE_API ABuildableActor : public AActor
 public:
 	ABuildableActor();
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build|Mesh")
+	class USceneComponent* SceneRootComponent = nullptr;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build|Mesh")
+	class UStaticMeshComponent* StaticMeshComponent = nullptr;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Preview")
 	class UMaterialInterface* ValidPreviewMaterial = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Preview")
 	class UMaterialInterface* InvalidPreviewMaterial = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Preview")
-	class UMaterialInterface* BuiltMaterial = nullptr;
-
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Size", meta = (ClampMin = "1.0"))
-	FVector2D FootprintSize = FVector2D(400.0f, 400.0f);
+	FVector2D FootprintSize = FVector2D(40.0f, 40.0f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Size", meta = (ClampMin = "1.0"))
 	float PlacementBoxHalfHeight = 100.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Size", meta = (ClampMin = "0.0"))
 	float ActorHalfHeight = 50.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Size", meta = (ClampMin = "0.0"))
-	float PreviewHalfHeight = 50.0f;
 
 	UFUNCTION(BlueprintCallable, Category = "Build")
 	void SetPreviewMode(bool bEnabled);
@@ -47,6 +47,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Build")
 	bool IsPreviewMode() const;
 
+	UFUNCTION(BlueprintCallable, Category = "Build")
+	void SetBuildSize(const FVector& NewBuildSize);
+
+	UFUNCTION(BlueprintCallable, Category = "Build")
+	void SetBuildMesh(class UStaticMesh* NewMesh);
+
+	virtual void OnConstruction(const FTransform& Transform) override;
+
 private:
 	bool bPreviewMode = false;
 	TMap<class UMeshComponent*, TArray<class UMaterialInterface*>> OriginalMaterials;
@@ -55,4 +63,5 @@ private:
 	void RestoreOriginalMaterials();
 	void SetActorCollisionEnabled(bool bEnabled);
 	void ApplyMaterial(class UMaterialInterface* Material);
+	void UpdateStaticMeshSize();
 };

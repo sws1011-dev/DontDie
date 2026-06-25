@@ -13,16 +13,6 @@ ACampPlayerCharacter::ACampPlayerCharacter()
 	CampBuildComponent = CreateDefaultSubobject<UCampBuildComponent>(TEXT("CampBuildComponent"));
 }
 
-void ACampPlayerCharacter::BeginPlay()
-{
-	Super::BeginPlay();
-}
-
-void ACampPlayerCharacter::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-}
-
 void ACampPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
@@ -50,7 +40,29 @@ void ACampPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 
 	if (IaRotateBuild != nullptr)
 	{
-		EnhancedInputComponent->BindAction(IaRotateBuild, ETriggerEvent::Triggered, this, &ACampPlayerCharacter::RotateBuild);
+		EnhancedInputComponent->BindAction(IaRotateBuild, ETriggerEvent::Started, this, &ACampPlayerCharacter::RotateBuild);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("CampPlayerCharacter: IaRotateBuild is not assigned."));
+	}
+
+	if (IaChangeBuild != nullptr)
+	{
+		EnhancedInputComponent->BindAction(IaChangeBuild, ETriggerEvent::Started, this, &ACampPlayerCharacter::ChangeBuild);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("CampPlayerCharacter: IaChangeBuild is not assigned."));
+	}
+
+	if (IaUpgradeBuild != nullptr)
+	{
+		EnhancedInputComponent->BindAction(IaUpgradeBuild, ETriggerEvent::Triggered, this, &ACampPlayerCharacter::UpgradeBuild);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("CampPlayerCharacter: IaUpgradeBuild is not assigned."));
 	}
 }
 
@@ -101,14 +113,50 @@ void ACampPlayerCharacter::RotateBuild(const FInputActionValue& Value)
 		return;
 	}
 
-	const float WheelValue = Value.Get<float>();
-	if (FMath::IsNearlyZero(WheelValue))
+	const float InputValue = Value.Get<float>();
+	if (FMath::IsNearlyZero(InputValue))
 	{
 		return;
 	}
 
-	const float Direction = WheelValue > 0.0f ? 1.0f : -1.0f;
+	const float Direction = InputValue > 0.0f ? 1.0f : -1.0f;
 	CampBuildComponent->RotatePreview(Direction * CampBuildComponent->RotateStepDegrees);
+}
+
+void ACampPlayerCharacter::ChangeBuild(const FInputActionValue& Value)
+{
+	if (CampBuildComponent == nullptr)
+	{
+		return;
+	}
+
+	const float InputValue = Value.Get<float>();
+	if (FMath::IsNearlyZero(InputValue))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("CampPlayerCharacter: ChangeBuild input value is zero."));
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("CampPlayerCharacter: ChangeBuild input value=%.1f"), InputValue);
+	CampBuildComponent->ChangeSelectedBuilding(InputValue > 0.0f ? 1 : -1);
+}
+
+void ACampPlayerCharacter::UpgradeBuild(const FInputActionValue& Value)
+{
+	if (CampBuildComponent == nullptr)
+	{
+		return;
+	}
+
+	const float InputValue = Value.Get<float>();
+	if (FMath::IsNearlyZero(InputValue))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("CampPlayerCharacter: UpgradeBuild input value is zero."));
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("CampPlayerCharacter: UpgradeBuild input value=%.1f"), InputValue);
+	CampBuildComponent->ChangeSelectedTier(InputValue > 0.0f ? 1 : -1);
 }
 
 void ACampPlayerCharacter::AddBuildMappingContext()

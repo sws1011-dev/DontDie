@@ -33,13 +33,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Build")
 	class UInputAction* IaRotateBuild;
 
-protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Build")
+	class UInputAction* IaChangeBuild;
 
-public:
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Build")
+	class UInputAction* IaUpgradeBuild;
 
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
@@ -50,6 +48,8 @@ private:
 	void ConfirmBuild();
 	void CancelBuild();
 	void RotateBuild(const struct FInputActionValue& Value);
+	void ChangeBuild(const struct FInputActionValue& Value);
+	void UpgradeBuild(const struct FInputActionValue& Value);
 	void AddBuildMappingContext();
 	void RemoveBuildMappingContext();
 };

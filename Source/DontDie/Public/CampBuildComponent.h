@@ -34,10 +34,19 @@ public:
 	FVector GridOrigin = FVector::ZeroVector;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Placement", meta = (ClampMin = "1.0"))
-	float SurfaceTraceHeight = 1000.0f;
+	float SurfaceTraceHeight = 550.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Placement", meta = (ClampMin = "0.0"))
 	float PlacementBoxGroundClearance = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Placement", meta = (ClampMin = "0.0"))
+	float PlacementBoxExtentShrink = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Placement", meta = (ClampMin = "0.0"))
+	float SurfaceHeightTolerance = 5.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Data")
+	class UDataTable* BuildingDataTable = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Spawn")
 	TSubclassOf<class ABuildableActor> BuildActorClass;
@@ -75,9 +84,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Build")
 	void RotatePreview(float YawDelta);
 
-protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
+	UFUNCTION(BlueprintCallable, Category = "Build")
+	void ChangeSelectedBuilding(int32 Direction);
+
+	UFUNCTION(BlueprintCallable, Category = "Build")
+	void ChangeSelectedTier(int32 Direction);
 
 public:
 	// Called every frame
@@ -90,17 +101,34 @@ private:
 	bool bBuildMode = false;
 	bool bHasCurrentTraceHit = false;
 	bool bCanPlaceCurrentPreview = false;
+	bool bSurfacePlacementBlocked = false;
 	float CurrentBuildYaw = 0.0f;
 
 	FHitResult CurrentTraceHit;
 	FIntPoint CurrentGridIndex = FIntPoint::ZeroValue;
 	FVector CurrentSnappedLocation = FVector::ZeroVector;
+	FVector CurrentBuildSize = FVector::ZeroVector;
+	TArray<FName> BuildingRowNames;
+	TArray<FName> BuildingTypeIDs;
+	FName CurrentBuildingRowName = NAME_None;
+	FName CurrentBuildingTypeID = NAME_None;
+	int32 SelectedBuildingIndex = INDEX_NONE;
+	int32 CurrentTier = 1;
 	FString CurrentSurfaceDebugText;
 	FString CurrentBoxTraceDebugText;
 
 	void UpdateBuildTrace();
 	bool TraceFromCamera(FHitResult& OutHit) const;
+	void LoadBuildingDataRows();
+	bool SelectBuildingByIndex(int32 BuildingIndex);
+	bool SelectBuildingByRowName(FName RowName);
+	int32 FindBuildingIndexByRowName(FName RowName) const;
+	bool SelectClosestTierForType(FName BuildingTypeID, int32 DesiredTier);
+	bool SelectTierForCurrentType(int32 Tier);
+	const struct FBuildingDataRow* GetSelectedBuildingData() const;
+	FVector GetSelectedBuildSize() const;
 	FVector2D GetBuildFootprintSize() const;
+	FVector2D GetGridAlignedFootprintSize() const;
 	FVector2D GetPlacementHalfExtent() const;
 	float GetPlacementBoxHalfHeight() const;
 	float GetBuildActorHalfHeight() const;
@@ -108,6 +136,8 @@ private:
 	FVector GridIndexToWorldLocation(const FIntPoint& GridIndex) const;
 	void UpdateSurfaceTraces();
 	bool TraceSurfaceAtLocation(const FVector& TraceLocation, FHitResult& OutHit) const;
+	bool IsBlockedSurfaceHit(const FHitResult& HitResult) const;
+	bool IsUnsupportedSurfaceHit(bool bHit, const FHitResult& HitResult) const;
 	FString BuildSurfaceTraceDebugLine(const TCHAR* Label, bool bHit, const FHitResult& HitResult) const;
 	void UpdatePlacementBoxTrace();
 	void SpawnBuildPreviewActor();

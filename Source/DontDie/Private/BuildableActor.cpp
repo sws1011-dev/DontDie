@@ -5,10 +5,45 @@
 
 #include "Components/MeshComponent.h"
 #include "Components/PrimitiveComponent.h"
+#include "Components/SceneComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Materials/MaterialInterface.h"
+#include "UObject/ConstructorHelpers.h"
 
 ABuildableActor::ABuildableActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
+
+	SceneRootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRootComponent"));
+	SetRootComponent(SceneRootComponent);
+
+	StaticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StaticMeshComponent"));
+	StaticMeshComponent->SetupAttachment(SceneRootComponent);
+
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMeshFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
+	if (CubeMeshFinder.Succeeded())
+	{
+		StaticMeshComponent->SetStaticMesh(CubeMeshFinder.Object);
+	}
+
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> ValidPreviewMaterialFinder(TEXT("/Game/Build/Materials/M_BuildPreview_Valid.M_BuildPreview_Valid"));
+	if (ValidPreviewMaterialFinder.Succeeded())
+	{
+		ValidPreviewMaterial = ValidPreviewMaterialFinder.Object;
+	}
+
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> InvalidPreviewMaterialFinder(TEXT("/Game/Build/Materials/M_BuildPreview_Invalid.M_BuildPreview_Invalid"));
+	if (InvalidPreviewMaterialFinder.Succeeded())
+	{
+		InvalidPreviewMaterial = InvalidPreviewMaterialFinder.Object;
+	}
+}
+
+void ABuildableActor::OnConstruction(const FTransform& Transform)
+{
+	Super::OnConstruction(Transform);
+
+	UpdateStaticMeshSize();
 }
 
 void ABuildableActor::SetPreviewMode(bool bEnabled)
@@ -23,14 +58,7 @@ void ABuildableActor::SetPreviewMode(bool bEnabled)
 	}
 	else
 	{
-		if (BuiltMaterial != nullptr)
-		{
-			ApplyMaterial(BuiltMaterial);
-		}
-		else
-		{
-			RestoreOriginalMaterials();
-		}
+		RestoreOriginalMaterials();
 	}
 }
 
@@ -52,6 +80,29 @@ void ABuildableActor::FinalizeBuild()
 bool ABuildableActor::IsPreviewMode() const
 {
 	return bPreviewMode;
+}
+
+void ABuildableActor::SetBuildSize(const FVector& NewBuildSize)
+{
+	FootprintSize = FVector2D(
+		FMath::Max(NewBuildSize.X, 1.0f),
+		FMath::Max(NewBuildSize.Y, 1.0f));
+	ActorHalfHeight = FMath::Max(NewBuildSize.Z * 0.5f, 0.0f);
+	PlacementBoxHalfHeight = FMath::Max(NewBuildSize.Z * 0.5f, 1.0f);
+
+	UpdateStaticMeshSize();
+}
+
+void ABuildableActor::SetBuildMesh(UStaticMesh* NewMesh)
+{
+	if (StaticMeshComponent == nullptr || NewMesh == nullptr)
+	{
+		return;
+	}
+
+	StaticMeshComponent->SetStaticMesh(NewMesh);
+	OriginalMaterials.Empty();
+	UpdateStaticMeshSize();
 }
 
 void ABuildableActor::CacheOriginalMaterials()
@@ -139,4 +190,28 @@ void ABuildableActor::ApplyMaterial(UMaterialInterface* Material)
 			MeshComponent->SetMaterial(MaterialIndex, Material);
 		}
 	}
+}
+
+void ABuildableActor::UpdateStaticMeshSize()
+{
+	if (StaticMeshComponent == nullptr || StaticMeshComponent->GetStaticMesh() == nullptr)
+	{
+		return;
+	}
+
+	const FBoxSphereBounds MeshBounds = StaticMeshComponent->GetStaticMesh()->GetBounds();
+	const FVector MeshSize = MeshBounds.BoxExtent * 2.0f;
+
+	if (MeshSize.X <= KINDA_SMALL_NUMBER || MeshSize.Y <= KINDA_SMALL_NUMBER || MeshSize.Z <= KINDA_SMALL_NUMBER)
+	{
+		return;
+	}
+
+	const FVector NewScale(
+		FMath::Max(FootprintSize.X, 1.0f) / MeshSize.X,
+		FMath::Max(FootprintSize.Y, 1.0f) / MeshSize.Y,
+		FMath::Max(ActorHalfHeight * 2.0f, 1.0f) / MeshSize.Z);
+
+	StaticMeshComponent->SetRelativeScale3D(NewScale);
+	StaticMeshComponent->SetRelativeLocation(-MeshBounds.Origin * NewScale);
 }
