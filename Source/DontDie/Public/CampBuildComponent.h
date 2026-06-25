@@ -21,12 +21,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Trace")
 	TEnumAsByte<ECollisionChannel> BuildTraceChannel = ECC_Visibility;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Debug")
-	bool bDrawDebugTrace = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Debug")
-	bool bDrawDebugText = true;
-
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Grid", meta = (ClampMin = "1.0"))
 	float GridCellSize = 40.0f;
 
@@ -114,8 +108,6 @@ private:
 	FName CurrentBuildingTypeID = NAME_None;
 	int32 SelectedBuildingIndex = INDEX_NONE;
 	int32 CurrentTier = 1;
-	FString CurrentSurfaceDebugText;
-	FString CurrentBoxTraceDebugText;
 
 	void UpdateBuildTrace();
 	bool TraceFromCamera(FHitResult& OutHit) const;
@@ -138,10 +130,8 @@ private:
 	bool TraceSurfaceAtLocation(const FVector& TraceLocation, FHitResult& OutHit) const;
 	bool IsBlockedSurfaceHit(const FHitResult& HitResult) const;
 	bool IsUnsupportedSurfaceHit(bool bHit, const FHitResult& HitResult) const;
-	FString BuildSurfaceTraceDebugLine(const TCHAR* Label, bool bHit, const FHitResult& HitResult) const;
 	void UpdatePlacementBoxTrace();
 	void SpawnBuildPreviewActor();
 	void DestroyBuildPreviewActor();
 	void UpdateBuildPreviewActor();
-	void DrawCurrentTraceDebug() const;
 };

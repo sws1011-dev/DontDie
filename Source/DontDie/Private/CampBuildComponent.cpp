@@ -5,10 +5,8 @@
 
 #include "BuildingDataRow.h"
 #include "BuildableActor.h"
-#include "DrawDebugHelpers.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/DataTable.h"
-#include "Engine/Engine.h"
 #include "Engine/OverlapResult.h"
 #include "Engine/StaticMesh.h"
 #include "GameFramework/Pawn.h"
@@ -44,8 +42,6 @@ void UCampBuildComponent::SetBuildMode(bool bEnabled)
 		bHasCurrentTraceHit = false;
 		bCanPlaceCurrentPreview = false;
 		bSurfacePlacementBlocked = false;
-		CurrentSurfaceDebugText.Empty();
-		CurrentBoxTraceDebugText.Empty();
 		DestroyBuildPreviewActor();
 	}
 	else
@@ -93,76 +89,32 @@ bool UCampBuildComponent::ConfirmBuild()
 {
 	if (!bBuildMode)
 	{
-		const FString Message = TEXT("CampBuildComponent: Build mode is disabled.");
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *Message);
-		if (GEngine != nullptr)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Red, Message);
-		}
 		return false;
 	}
 
 	if (!bHasCurrentTraceHit)
 	{
-		const FString Message = TEXT("CampBuildComponent: No build trace hit.");
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *Message);
-		if (GEngine != nullptr)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Red, Message);
-		}
 		return false;
 	}
 
 	if (!bCanPlaceCurrentPreview)
 	{
-		const FString Message = FString::Printf(TEXT("CampBuildComponent: Current placement is blocked.%s"), *CurrentBoxTraceDebugText);
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *Message);
-		if (GEngine != nullptr)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Red, Message);
-		}
 		return false;
 	}
 
 	if (BuildActorClass == nullptr)
 	{
-		const FString Message = TEXT("CampBuildComponent: BuildActorClass is not assigned.");
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *Message);
-		if (GEngine != nullptr)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Red, Message);
-		}
 		return false;
 	}
 
 	if (CurrentPreviewActor == nullptr)
 	{
-		const FString Message = TEXT("CampBuildComponent: Preview actor is not spawned.");
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *Message);
-		if (GEngine != nullptr)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Red, Message);
-		}
 		return false;
 	}
 
 	ABuildableActor* BuiltActor = CurrentPreviewActor;
 	CurrentPreviewActor = nullptr;
 	BuiltActor->FinalizeBuild();
-
-	const FVector BuildLocation = BuiltActor->GetActorLocation();
-	const FString Message = FString::Printf(
-		TEXT("CampBuildComponent: Build confirmed. Actor=%s Location=(%.0f, %.0f, %.0f)"),
-		*BuiltActor->GetName(),
-		BuildLocation.X,
-		BuildLocation.Y,
-		BuildLocation.Z);
-
-	UE_LOG(LogTemp, Warning, TEXT("%s"), *Message);
-	if (GEngine != nullptr)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Green, Message);
-	}
 
 	SpawnBuildPreviewActor();
 	UpdateBuildPreviewActor();
@@ -200,23 +152,11 @@ void UCampBuildComponent::ChangeSelectedBuilding(int32 Direction)
 
 	if (BuildingTypeIDs.IsEmpty())
 	{
-		const FString Message = TEXT("CampBuildComponent: ChangeSelectedBuilding failed. No building types loaded.");
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *Message);
-		if (GEngine != nullptr)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Yellow, Message);
-		}
 		return;
 	}
 
 	if (BuildingTypeIDs.Num() <= 1)
 	{
-		const FString Message = FString::Printf(TEXT("CampBuildComponent: ChangeSelectedBuilding ignored. Type count=%d."), BuildingTypeIDs.Num());
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *Message);
-		if (GEngine != nullptr)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Yellow, Message);
-		}
 		return;
 	}
 
@@ -244,36 +184,16 @@ void UCampBuildComponent::ChangeSelectedTier(int32 Direction)
 
 	if (BuildingDataTable == nullptr || CurrentBuildingRowName.IsNone() || CurrentBuildingTypeID.IsNone())
 	{
-		const FString Message = TEXT("CampBuildComponent: ChangeSelectedTier failed. No selected building data.");
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *Message);
-		if (GEngine != nullptr)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Yellow, Message);
-		}
 		return;
 	}
 
 	if (GetSelectedBuildingData() == nullptr)
 	{
-		const FString Message = FString::Printf(TEXT("CampBuildComponent: ChangeSelectedTier failed. Row=%s is invalid."), *CurrentBuildingRowName.ToString());
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *Message);
-		if (GEngine != nullptr)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Yellow, Message);
-		}
 		return;
 	}
 
 	const int32 NextTier = CurrentTier + (Direction > 0 ? 1 : -1);
-	if (!SelectTierForCurrentType(NextTier))
-	{
-		const FString Message = FString::Printf(TEXT("CampBuildComponent: No tier %d for type %s."), NextTier, *CurrentBuildingTypeID.ToString());
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *Message);
-		if (GEngine != nullptr)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Yellow, Message);
-		}
-	}
+	SelectTierForCurrentType(NextTier);
 }
 
 void UCampBuildComponent::UpdateBuildTrace()
@@ -293,12 +213,9 @@ void UCampBuildComponent::UpdateBuildTrace()
 	{
 		bCanPlaceCurrentPreview = false;
 		bSurfacePlacementBlocked = false;
-		CurrentSurfaceDebugText.Empty();
-		CurrentBoxTraceDebugText.Empty();
 	}
 
 	UpdateBuildPreviewActor();
-	DrawCurrentTraceDebug();
 }
 
 bool UCampBuildComponent::TraceFromCamera(FHitResult& OutHit) const
@@ -322,20 +239,7 @@ bool UCampBuildComponent::TraceFromCamera(FHitResult& OutHit) const
 	FCollisionQueryParams QueryParams;
 	QueryParams.AddIgnoredActor(OwnerPawn);
 
-	const bool bHit = World->LineTraceSingleByChannel(OutHit, TraceStart, TraceEnd, BuildTraceChannel, QueryParams);
-
-	if (bDrawDebugTrace)
-	{
-		const FColor TraceColor = bHit ? FColor::Green : FColor::Red;
-		DrawDebugLine(World, TraceStart, TraceEnd, TraceColor, false, 0.0f, 0, 2.0f);
-
-		if (bHit)
-		{
-			DrawDebugSphere(World, OutHit.ImpactPoint, 12.0f, 8, TraceColor, false, 0.0f);
-		}
-	}
-
-	return bHit;
+	return World->LineTraceSingleByChannel(OutHit, TraceStart, TraceEnd, BuildTraceChannel, QueryParams);
 }
 
 void UCampBuildComponent::LoadBuildingDataRows()
@@ -345,13 +249,6 @@ void UCampBuildComponent::LoadBuildingDataRows()
 
 	if (BuildingDataTable == nullptr)
 	{
-		const FString Message = TEXT("CampBuildComponent: BuildingDataTable is not assigned. Using BuildActorClass fallback.");
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *Message);
-		if (GEngine != nullptr)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Yellow, Message);
-		}
-
 		SelectedBuildingIndex = INDEX_NONE;
 		CurrentBuildingRowName = NAME_None;
 		CurrentBuildingTypeID = NAME_None;
@@ -361,15 +258,6 @@ void UCampBuildComponent::LoadBuildingDataRows()
 	}
 
 	BuildingRowNames = BuildingDataTable->GetRowNames();
-	const FString LoadedMessage = FString::Printf(
-		TEXT("CampBuildComponent: Loaded %d building row(s) from %s."),
-		BuildingRowNames.Num(),
-		*BuildingDataTable->GetName());
-	UE_LOG(LogTemp, Log, TEXT("%s"), *LoadedMessage);
-	if (GEngine != nullptr)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Cyan, LoadedMessage);
-	}
 
 	for (int32 Index = 0; Index < BuildingRowNames.Num(); ++Index)
 	{
@@ -377,24 +265,8 @@ void UCampBuildComponent::LoadBuildingDataRows()
 		const FBuildingDataRow* BuildingData = BuildingDataTable->FindRow<FBuildingDataRow>(RowName, TEXT("CampBuildComponent::LoadBuildingDataRows"));
 		if (BuildingData == nullptr)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("CampBuildComponent: [%d] Row=%s is invalid."), Index, *RowName.ToString());
 			continue;
 		}
-
-		UE_LOG(
-			LogTemp,
-			Log,
-			TEXT("CampBuildComponent: [%d] Row=%s Type=%s Tier=%d DisplayName=%s Class=%s Mesh=%s Size=(%.0f, %.0f, %.0f)"),
-			Index,
-			*RowName.ToString(),
-			*BuildingData->BuildingTypeID.ToString(),
-			BuildingData->Tier,
-			*BuildingData->DisplayName.ToString(),
-			*BuildingData->BuildActorClass.ToString(),
-			*BuildingData->StaticMesh.ToString(),
-			BuildingData->SizeX,
-			BuildingData->SizeY,
-			BuildingData->SizeZ);
 
 		if (!BuildingData->BuildingTypeID.IsNone() && !BuildingTypeIDs.Contains(BuildingData->BuildingTypeID))
 		{
@@ -404,13 +276,6 @@ void UCampBuildComponent::LoadBuildingDataRows()
 
 	if (BuildingRowNames.IsEmpty())
 	{
-		const FString Message = FString::Printf(TEXT("CampBuildComponent: BuildingDataTable %s has no rows."), *BuildingDataTable->GetName());
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *Message);
-		if (GEngine != nullptr)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Yellow, Message);
-		}
-
 		SelectedBuildingIndex = INDEX_NONE;
 		CurrentBuildingRowName = NAME_None;
 		CurrentBuildingTypeID = NAME_None;
@@ -423,7 +288,6 @@ bool UCampBuildComponent::SelectBuildingByIndex(int32 BuildingIndex)
 {
 	if (BuildingDataTable == nullptr || !BuildingRowNames.IsValidIndex(BuildingIndex))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("CampBuildComponent: SelectBuildingByIndex failed. Index=%d RowCount=%d"), BuildingIndex, BuildingRowNames.Num());
 		return false;
 	}
 
@@ -431,19 +295,12 @@ bool UCampBuildComponent::SelectBuildingByIndex(int32 BuildingIndex)
 	const FBuildingDataRow* BuildingData = BuildingDataTable->FindRow<FBuildingDataRow>(RowName, TEXT("CampBuildComponent::SelectBuildingByIndex"));
 	if (BuildingData == nullptr)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("CampBuildComponent: SelectBuildingByIndex failed. Row=%s is invalid."), *RowName.ToString());
 		return false;
 	}
 
 	TSubclassOf<ABuildableActor> LoadedBuildActorClass = BuildingData->BuildActorClass.LoadSynchronous();
 	if (LoadedBuildActorClass == nullptr)
 	{
-		const FString Message = FString::Printf(TEXT("CampBuildComponent: BuildActorClass is not assigned. Row=%s"), *RowName.ToString());
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *Message);
-		if (GEngine != nullptr)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Red, Message);
-		}
 		return false;
 	}
 
@@ -456,23 +313,6 @@ bool UCampBuildComponent::SelectBuildingByIndex(int32 BuildingIndex)
 		FMath::Max(BuildingData->SizeX, 1.0f),
 		FMath::Max(BuildingData->SizeY, 1.0f),
 		FMath::Max(BuildingData->SizeZ, 1.0f));
-
-	const FString Message = FString::Printf(
-		TEXT("CampBuildComponent: Selected building [%d] Row=%s Type=%s Tier=%d DisplayName=%s Class=%s Size=(%.0f, %.0f, %.0f)"),
-		SelectedBuildingIndex,
-		*CurrentBuildingRowName.ToString(),
-		*CurrentBuildingTypeID.ToString(),
-		CurrentTier,
-		*BuildingData->DisplayName.ToString(),
-		*BuildActorClass->GetName(),
-		CurrentBuildSize.X,
-		CurrentBuildSize.Y,
-		CurrentBuildSize.Z);
-	UE_LOG(LogTemp, Log, TEXT("%s"), *Message);
-	if (GEngine != nullptr)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Green, Message);
-	}
 
 	if (CurrentPreviewActor != nullptr)
 	{
@@ -488,12 +328,6 @@ bool UCampBuildComponent::SelectBuildingByRowName(FName RowName)
 	const int32 BuildingIndex = FindBuildingIndexByRowName(RowName);
 	if (BuildingIndex == INDEX_NONE)
 	{
-		const FString Message = FString::Printf(TEXT("CampBuildComponent: SelectBuildingByRowName failed. Row=%s was not found."), *RowName.ToString());
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *Message);
-		if (GEngine != nullptr)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Yellow, Message);
-		}
 		return false;
 	}
 
@@ -665,7 +499,6 @@ FVector UCampBuildComponent::GridIndexToWorldLocation(const FIntPoint& GridIndex
 
 void UCampBuildComponent::UpdateSurfaceTraces()
 {
-	CurrentSurfaceDebugText.Empty();
 	bSurfacePlacementBlocked = false;
 	const FVector2D PlacementHalfExtent = GetPlacementHalfExtent();
 	const FQuat PlacementRotation = FRotator(0.0f, CurrentBuildYaw, 0.0f).Quaternion();
@@ -673,7 +506,6 @@ void UCampBuildComponent::UpdateSurfaceTraces()
 	FHitResult CenterHit;
 	const bool bCenterHit = TraceSurfaceAtLocation(CurrentSnappedLocation, CenterHit);
 
-	CurrentSurfaceDebugText += BuildSurfaceTraceDebugLine(TEXT("Center"), bCenterHit, CenterHit);
 	bSurfacePlacementBlocked = bSurfacePlacementBlocked || !bCenterHit || IsBlockedSurfaceHit(CenterHit);
 
 	if (bCenterHit)
@@ -689,22 +521,12 @@ void UCampBuildComponent::UpdateSurfaceTraces()
 		FVector(-PlacementHalfExtent.X, -PlacementHalfExtent.Y, 0.0f),
 	};
 
-	const TCHAR* CornerLabels[] =
-	{
-		TEXT("Corner +X +Y"),
-		TEXT("Corner +X -Y"),
-		TEXT("Corner -X +Y"),
-		TEXT("Corner -X -Y"),
-	};
-
 	for (int32 Index = 0; Index < UE_ARRAY_COUNT(CornerOffsets); ++Index)
 	{
 		FHitResult SurfaceHit;
 		const FVector TraceLocation = CurrentSnappedLocation + PlacementRotation.RotateVector(CornerOffsets[Index]);
 		const bool bSurfaceHit = TraceSurfaceAtLocation(TraceLocation, SurfaceHit);
 
-		CurrentSurfaceDebugText += TEXT("\n");
-		CurrentSurfaceDebugText += BuildSurfaceTraceDebugLine(CornerLabels[Index], bSurfaceHit, SurfaceHit);
 		bSurfacePlacementBlocked = bSurfacePlacementBlocked || IsUnsupportedSurfaceHit(bSurfaceHit, SurfaceHit);
 	}
 }
@@ -732,20 +554,7 @@ bool UCampBuildComponent::TraceSurfaceAtLocation(const FVector& TraceLocation, F
 		QueryParams.AddIgnoredActor(CurrentPreviewActor);
 	}
 
-	const bool bHit = World->LineTraceSingleByChannel(OutHit, TraceStart, TraceEnd, BuildTraceChannel, QueryParams);
-
-	if (bDrawDebugTrace)
-	{
-		const FColor TraceColor = bHit ? FColor::Blue : FColor::Yellow;
-		DrawDebugLine(World, TraceStart, TraceEnd, TraceColor, false, 0.0f, 0, 2.0f);
-
-		if (bHit)
-		{
-			DrawDebugSphere(World, OutHit.ImpactPoint, 10.0f, 8, TraceColor, false, 0.0f);
-		}
-	}
-
-	return bHit;
+	return World->LineTraceSingleByChannel(OutHit, TraceStart, TraceEnd, BuildTraceChannel, QueryParams);
 }
 
 bool UCampBuildComponent::IsBlockedSurfaceHit(const FHitResult& HitResult) const
@@ -769,38 +578,12 @@ bool UCampBuildComponent::IsUnsupportedSurfaceHit(bool bHit, const FHitResult& H
 	return FMath::Abs(HitResult.ImpactPoint.Z - CurrentSnappedLocation.Z) > FMath::Max(SurfaceHeightTolerance, 0.0f);
 }
 
-FString UCampBuildComponent::BuildSurfaceTraceDebugLine(const TCHAR* Label, bool bHit, const FHitResult& HitResult) const
-{
-	if (!bHit)
-	{
-		return FString::Printf(TEXT("%s: No hit NoSurface"), Label);
-	}
-
-	const AActor* HitActor = HitResult.GetActor();
-	const FString ActorName = HitActor != nullptr ? HitActor->GetName() : TEXT("None");
-	const TCHAR* SurfaceState = IsBlockedSurfaceHit(HitResult) ? TEXT(" BlockedSurface") : TEXT("");
-	const TCHAR* HeightState = FMath::Abs(HitResult.ImpactPoint.Z - CurrentSnappedLocation.Z) > FMath::Max(SurfaceHeightTolerance, 0.0f) ? TEXT(" UnevenSurface") : TEXT("");
-
-	return FString::Printf(
-		TEXT("%s: X=%.0f Y=%.0f Z=%.0f Actor=%s%s%s"),
-		Label,
-		HitResult.ImpactPoint.X,
-		HitResult.ImpactPoint.Y,
-		HitResult.ImpactPoint.Z,
-		*ActorName,
-		SurfaceState,
-		HeightState);
-}
-
 void UCampBuildComponent::UpdatePlacementBoxTrace()
 {
-	CurrentBoxTraceDebugText.Empty();
-
 	UWorld* World = GetWorld();
 	APawn* OwnerPawn = Cast<APawn>(GetOwner());
 	if (World == nullptr)
 	{
-		CurrentBoxTraceDebugText = TEXT("\nBox: No world");
 		bCanPlaceCurrentPreview = false;
 		return;
 	}
@@ -826,7 +609,7 @@ void UCampBuildComponent::UpdatePlacementBoxTrace()
 	}
 
 	TArray<FOverlapResult> BoxOverlaps;
-	const bool bHit = World->OverlapMultiByChannel(
+	World->OverlapMultiByChannel(
 		BoxOverlaps,
 		BoxCenter,
 		BoxRotation,
@@ -834,21 +617,7 @@ void UCampBuildComponent::UpdatePlacementBoxTrace()
 		FCollisionShape::MakeBox(BoxExtent),
 		QueryParams);
 
-	if (bDrawDebugTrace)
-	{
-		DrawDebugBox(
-			World,
-			BoxCenter,
-			BoxExtent,
-			BoxRotation,
-			bHit ? FColor::Red : FColor::Cyan,
-			false,
-			0.0f,
-			0,
-			2.0f);
-	}
-
-	TArray<FString> HitActorNames;
+	bool bHasBlockingOverlap = false;
 	for (const FOverlapResult& BoxOverlap : BoxOverlaps)
 	{
 		const AActor* HitActor = BoxOverlap.GetActor();
@@ -857,30 +626,17 @@ void UCampBuildComponent::UpdatePlacementBoxTrace()
 			continue;
 		}
 
-		const FString ActorName = HitActor->GetName();
-		if (!HitActorNames.Contains(ActorName))
-		{
-			HitActorNames.Add(ActorName);
-		}
+		bHasBlockingOverlap = true;
+		break;
 	}
 
-	if (HitActorNames.IsEmpty())
+	if (!bHasBlockingOverlap)
 	{
-		CurrentBoxTraceDebugText = TEXT("\nBox: No actor");
 		bCanPlaceCurrentPreview = !bSurfacePlacementBlocked;
-		if (bSurfacePlacementBlocked)
-		{
-			CurrentBoxTraceDebugText += TEXT("\nSurface: Buildable actor below");
-		}
 		return;
 	}
 
 	bCanPlaceCurrentPreview = false;
-	CurrentBoxTraceDebugText = FString::Printf(TEXT("\nBox: %d actor(s)"), HitActorNames.Num());
-	for (const FString& ActorName : HitActorNames)
-	{
-		CurrentBoxTraceDebugText += FString::Printf(TEXT("\n- %s"), *ActorName);
-	}
 }
 
 void UCampBuildComponent::SpawnBuildPreviewActor()
@@ -947,52 +703,4 @@ void UCampBuildComponent::UpdateBuildPreviewActor()
 	CurrentPreviewActor->SetActorRotation(FRotator(0.0f, CurrentBuildYaw, 0.0f));
 	CurrentPreviewActor->SetActorHiddenInGame(false);
 	CurrentPreviewActor->SetPlacementValid(bCanPlaceCurrentPreview);
-}
-
-void UCampBuildComponent::DrawCurrentTraceDebug() const
-{
-	if (!bDrawDebugText)
-	{
-		return;
-	}
-
-	const FString DebugText = bHasCurrentTraceHit
-		? FString::Printf(
-			TEXT("Placement: %s\nHit: X=%.0f Y=%.0f Z=%.0f\nGrid: X=%d Y=%d\nSnap: X=%.0f Y=%.0f\nSize: %.0f x %.0f\nOccupied: %.0f x %.0f\n%s%s"),
-			bCanPlaceCurrentPreview ? TEXT("Available") : TEXT("Blocked"),
-			CurrentTraceHit.ImpactPoint.X,
-			CurrentTraceHit.ImpactPoint.Y,
-			CurrentTraceHit.ImpactPoint.Z,
-			CurrentGridIndex.X,
-			CurrentGridIndex.Y,
-			CurrentSnappedLocation.X,
-			CurrentSnappedLocation.Y,
-			GetBuildFootprintSize().X,
-			GetBuildFootprintSize().Y,
-			GetGridAlignedFootprintSize().X,
-			GetGridAlignedFootprintSize().Y,
-			*CurrentSurfaceDebugText,
-			*CurrentBoxTraceDebugText)
-		: TEXT("No build trace hit");
-
-	if (GEngine != nullptr)
-	{
-		GEngine->AddOnScreenDebugMessage(
-			static_cast<uint64>(GetUniqueID()),
-			0.0f,
-			bHasCurrentTraceHit ? FColor::Green : FColor::Red,
-			DebugText);
-	}
-
-	if (bHasCurrentTraceHit)
-	{
-		DrawDebugString(
-			GetWorld(),
-			CurrentTraceHit.ImpactPoint + FVector(0.0f, 0.0f, 40.0f),
-			DebugText,
-			nullptr,
-			FColor::White,
-			0.0f,
-			true);
-	}
 }
