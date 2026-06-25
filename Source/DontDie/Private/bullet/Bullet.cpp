@@ -1,10 +1,10 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "bullet/Bullet.h"
 
 #include "enemy/EnemyActor.h"
-#include "player/PlayerCharacter.h"
+#include "player/CombatPlayerCharacter.h"
 #include "survivor/SurvivorActor.h"
 #include "Components/BoxComponent.h"
 
@@ -51,7 +51,7 @@ void ABullet::OnBulletOverlap(UPrimitiveComponent* OverlappedComponent, AActor* 
 	APlayerController* pc = GetWorld()->GetFirstPlayerController();
 	if (pc != nullptr)
 	{
-		APlayerCharacter* player = Cast<APlayerCharacter>(pc->GetPawn());
+		ACombatPlayerCharacter* player = Cast<ACombatPlayerCharacter>(pc->GetPawn());
 		if (player != nullptr)
 		{
 			FinalDamage = player->GetCalculatedDamage();

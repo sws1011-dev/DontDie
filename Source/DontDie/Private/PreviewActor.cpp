@@ -55,14 +55,26 @@ void APreviewActor::SetPreviewValid(bool bIsValid)
 
 void APreviewActor::SetPreviewSize(float TileSize)
 {
+	SetPreviewSize2D(FVector2D(TileSize, TileSize), 50.0f);
+}
+
+void APreviewActor::SetPreviewSize2D(const FVector2D& FootprintSize, float HalfHeight)
+{
 	if (PreviewMesh == nullptr)
 	{
 		return;
 	}
 
 	const float CubeSize = 100.0f;
-	const float Scale = TileSize / CubeSize;
-	PreviewMesh->SetRelativeScale3D(FVector(Scale, Scale, 1.0f));
+	const FVector SafeSize(
+		FMath::Max(FootprintSize.X, 1.0f),
+		FMath::Max(FootprintSize.Y, 1.0f),
+		FMath::Max(HalfHeight * 2.0f, 1.0f));
+
+	PreviewMesh->SetRelativeScale3D(FVector(
+		SafeSize.X / CubeSize,
+		SafeSize.Y / CubeSize,
+		SafeSize.Z / CubeSize));
 }
 
 void APreviewActor::ApplyPreviewColor(const FLinearColor& Color)

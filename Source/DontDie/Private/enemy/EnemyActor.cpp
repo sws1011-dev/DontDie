@@ -1,4 +1,4 @@
-ï»¿// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "enemy/EnemyActor.h"
@@ -6,7 +6,7 @@
 #include "gamemode/DontDieGameModeBase.h"
 #include "widget/EnemyDamagedWidget.h"
 #include "widget/EnemyHpWidget.h"
-#include "player/PlayerCharacter.h"
+#include "player/CombatPlayerCharacter.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -43,7 +43,7 @@ void AEnemyActor::BeginPlay()
 
 	if (MyGameMode)
 	{
-		// ì›¨ì´ë¸Œê°€ 5ì”© ì§„í–‰ë  ë•Œë§ˆë‹¤ ìŠ¤íƒ¯ ì¦ê°€ (1~5: ê¸°ë³¸, 6~10: +1ë‹¨ê³„, 11~15: +2ë‹¨ê³„...)
+		// ¿şÀÌºê°¡ 5¾¿ ÁøÇàµÉ ¶§¸¶´Ù ½ºÅÈ Áõ°¡ (1~5: ±âº», 6~10: +1´Ü°è, 11~15: +2´Ü°è...)
 		int32 ScalingStep = (MyGameMode->CurrentWave - 1) / 5;
 
 		if (ScalingStep > 0)
@@ -61,7 +61,7 @@ void AEnemyActor::BeginPlay()
 	APlayerController* pc = GetWorld()->GetFirstPlayerController();
 	if (pc != nullptr)
 	{
-		TargetPlayer = Cast<APlayerCharacter>(pc->GetPawn());
+		TargetPlayer = Cast<ACombatPlayerCharacter>(pc->GetPawn());
 	}
 	dir = GetActorForwardVector();
 
@@ -79,22 +79,22 @@ void AEnemyActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	// 1. íƒ€ê²Ÿ í”Œë ˆì´ì–´ê°€ ìˆê³ , í˜„ì¬ ê³µê²© ì¤‘ì´ ì•„ë‹ ë•Œë§Œ ë¡œì§ ìˆ˜í–‰
+	// 1. Å¸°Ù ÇÃ·¹ÀÌ¾î°¡ ÀÖ°í, ÇöÀç °ø°İ ÁßÀÌ ¾Æ´Ò ¶§¸¸ ·ÎÁ÷ ¼öÇà
 	if (TargetPlayer != nullptr && !bIsAttacking)
 	{
-		// í”Œë ˆì´ì–´ì™€ì˜ ì‹¤ì œ ê±°ë¦¬ ê³„ì‚°
+		// ÇÃ·¹ÀÌ¾î¿ÍÀÇ ½ÇÁ¦ °Å¸® °è»ê
 		float DistanceToPlayer = FVector::Dist(GetActorLocation(), TargetPlayer->GetActorLocation());
 
-		// 2. ì‚¬ê±°ë¦¬ ì•ˆì— ë“¤ì–´ì™”ëŠ”ì§€ ê²€ì‚¬
+		// 2. »ç°Å¸® ¾È¿¡ µé¾î¿Ô´ÂÁö °Ë»ç
 		if (DistanceToPlayer <= AttackRange)
 		{
-			// ì´ë™ ë°©í–¥ ë²¡í„°ë¥¼ 0ìœ¼ë¡œ ë§Œë“¤ì–´ ë©ˆì¶”ê²Œ í•˜ê³  ê³µê²© ì‹¤í–‰
+			// ÀÌµ¿ ¹æÇâ º¤ÅÍ¸¦ 0À¸·Î ¸¸µé¾î ¸ØÃß°Ô ÇÏ°í °ø°İ ½ÇÇà
 			dir = FVector::ZeroVector;
 			Attack();
 		}
 		else
 		{
-			// ì‚¬ê±°ë¦¬ ë°–ì´ë¼ë©´ ê¸°ì¡´ ì¶”ì  ë° íšŒì „ ë¡œì§ ì‹¤í–‰
+			// »ç°Å¸® ¹ÛÀÌ¶ó¸é ±âÁ¸ ÃßÀû ¹× È¸Àü ·ÎÁ÷ ½ÇÇà
 			dir = TargetPlayer->GetActorLocation() - GetActorLocation();
 			dir.Normalize();
 
@@ -140,7 +140,7 @@ void AEnemyActor::TakeDamage(float DamageAmount, FVector HitLocation)
 		{
 			MyGameMode->OnEnemyKilled();
 
-			// í”Œë ˆì´ì–´ì˜ ì¬í™” íšë“ ë°°ìœ¨ ë°˜ì˜
+			// ÇÃ·¹ÀÌ¾îÀÇ ÀçÈ­ È¹µæ ¹èÀ² ¹İ¿µ
 			float Multiplier = 1.0f;
 			if (TargetPlayer)
 			{
@@ -175,10 +175,10 @@ void AEnemyActor::Attack()
 	UAnimInstance* AnimInstance = SkeletalMeshComponent->GetAnimInstance();
 	if (AnimInstance)
 	{
-		// ëª½íƒ€ì£¼ ì¬ìƒ
+		// ¸ùÅ¸ÁÖ Àç»ı
 		AnimInstance->Montage_Play(AttackMontage, 2.5f);
 
-		// ëª½íƒ€ì£¼ê°€ ëë‚¬ì„ ë•Œ í˜¸ì¶œë  í•¨ìˆ˜ë¥¼ ë§í¬(ë°”ì¸ë”©) í•´ì¤ë‹ˆë‹¤.
+		// ¸ùÅ¸ÁÖ°¡ ³¡³µÀ» ¶§ È£ÃâµÉ ÇÔ¼ö¸¦ ¸µÅ©(¹ÙÀÎµù) ÇØÁİ´Ï´Ù.
 		FOnMontageEnded MontageEndedDelegate;
 		MontageEndedDelegate.BindUObject(this, &AEnemyActor::OnAttackMontageEnded);
 		AnimInstance->Montage_SetEndDelegate(MontageEndedDelegate, AttackMontage);
@@ -194,14 +194,14 @@ void AEnemyActor::DoHitCheck()
 {
 	if (TargetPlayer != nullptr)
 	{
-		// ë•Œë¦¬ëŠ” ìˆœê°„ í”Œë ˆì´ì–´ì™€ì˜ ê±°ë¦¬ ê³„ì‚°
+		// ¶§¸®´Â ¼ø°£ ÇÃ·¹ÀÌ¾î¿ÍÀÇ °Å¸® °è»ê
 		float DistanceToPlayer = FVector::Dist(GetActorLocation(), TargetPlayer->GetActorLocation());
 
-		// ì‚¬ê±°ë¦¬ ë‚´ì— ìˆë‹¤ë©´ ì¦‰ì‹œ ë°ë¯¸ì§€!
+		// »ç°Å¸® ³»¿¡ ÀÖ´Ù¸é Áï½Ã µ¥¹ÌÁö!
 		if (DistanceToPlayer <= 250)
 		{
 			TargetPlayer->OnReceiveDamage(AttackPower);
-			UE_LOG(LogTemp, Log, TEXT("ì¢€ë¹„ íƒ€ê²© ìˆœê°„ ì ì¤‘! ë°ë¯¸ì§€: %f"), AttackPower);
+			UE_LOG(LogTemp, Log, TEXT("Á»ºñ Å¸°İ ¼ø°£ ÀûÁß! µ¥¹ÌÁö: %f"), AttackPower);
 		}
 	}
 }

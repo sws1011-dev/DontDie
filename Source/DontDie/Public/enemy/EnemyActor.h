@@ -1,4 +1,4 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
@@ -22,7 +22,7 @@ public:
 	class USkeletalMeshComponent* SkeletalMeshComponent;
 
 	UPROPERTY()
-	class APlayerCharacter* TargetPlayer;
+	class ACombatPlayerCharacter* TargetPlayer;
 
 	UPROPERTY(EditAnywhere)
 	float MoveSpeed = 600.f;

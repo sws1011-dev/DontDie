@@ -33,6 +33,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Preview")
 	void SetPreviewSize(float TileSize);
 
+	UFUNCTION(BlueprintCallable, Category = "Preview")
+	void SetPreviewSize2D(const FVector2D& FootprintSize, float HalfHeight);
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;

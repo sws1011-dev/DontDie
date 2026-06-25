@@ -3,11 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Character.h"
+#include "player/BasePlayerCharacter.h"
 #include "CampPlayerCharacter.generated.h"
 
 UCLASS()
-class DONTDIE_API ACampPlayerCharacter : public ACharacter
+class DONTDIE_API ACampPlayerCharacter : public ABasePlayerCharacter
 {
 	GENERATED_BODY()
 
@@ -18,23 +18,20 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Build")
 	class UCampBuildComponent* CampBuildComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
-	class USpringArmComponent* SpringArmComp;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Mapping")
+	class UInputMappingContext* ImcBuild;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
-	class UCameraComponent* CameraComp;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Default")
+	class UInputAction* IaToggleBuildMode;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	class UInputMappingContext* ImcCampInput;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Build")
+	class UInputAction* IaConfirmBuild;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	class UInputAction* IaMove;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Build")
+	class UInputAction* IaCancelBuild;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	class UInputAction* IaLook;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	class UInputAction* IaBuild;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Build")
+	class UInputAction* IaRotateBuild;
 
 protected:
 	// Called when the game starts or when spawned
@@ -48,7 +45,11 @@ public:
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 private:
-	void OnInputMovement(const struct FInputActionValue& Value);
-	void OnInputLook(const struct FInputActionValue& Value);
 	void ToggleBuildMode();
+	void SetBuildMode(bool bEnabled);
+	void ConfirmBuild();
+	void CancelBuild();
+	void RotateBuild(const struct FInputActionValue& Value);
+	void AddBuildMappingContext();
+	void RemoveBuildMappingContext();
 };

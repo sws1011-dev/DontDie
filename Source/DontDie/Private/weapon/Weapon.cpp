@@ -1,10 +1,10 @@
-ï»¿// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "weapon/Weapon.h"
 
 #include "bullet/Bullet.h"
-#include "player/PlayerCharacter.h"
+#include "player/CombatPlayerCharacter.h"
 #include "Components/ArrowComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -33,27 +33,27 @@ void AWeapon::BeginPlay()
 
 void AWeapon::Fire(int32 ProjectileCount, float DamageMultiplier)
 {
-	// 1. ì¬ì¥ì „ ì¤‘ì´ê±°ë‚˜ ì´ë¯¸ ì ì‚¬ ì¤‘ì´ë©´ ë°œì‚¬ ë¶ˆê°€
+	// 1. ÀçÀåÀü ÁßÀÌ°Å³ª ÀÌ¹Ì Á¡»ç ÁßÀÌ¸é ¹ß»ç ºÒ°¡
 	if (bIsReloading || RemainingBurstCount > 0)
 	{
 		return;
 	}
 
-	// 2. ê³µê²© ì†ë„(ì—°ì‚¬ ì œí•œ) í™•ì¸ - ì²« ë°œì‚¬ ì‹œì  ê¸°ì¤€
+	// 2. °ø°İ ¼Óµµ(¿¬»ç Á¦ÇÑ) È®ÀÎ - Ã¹ ¹ß»ç ½ÃÁ¡ ±âÁØ
 	float CurrentTime = GetWorld()->GetTimeSeconds();
 	if (CurrentTime - LastFireTime < (1.0f / FireRate))
 	{
 		return;
 	}
 
-	// 3. íƒ„ì•½ í™•ì¸ (ìµœì†Œ í•œ ë°œì€ ìˆì–´ì•¼ ì‹œì‘)
+	// 3. Åº¾à È®ÀÎ (ÃÖ¼Ò ÇÑ ¹ßÀº ÀÖ¾î¾ß ½ÃÀÛ)
 	if (CurrentAmmo <= 0)
 	{
 		Reload();
 		return;
 	}
 
-	// 4. ì ì‚¬ ì‹œì‘
+	// 4. Á¡»ç ½ÃÀÛ
 	LastFireTime = CurrentTime;
 	StartBurst(ProjectileCount, DamageMultiplier);
 }
@@ -63,10 +63,10 @@ void AWeapon::StartBurst(int32 Count, float Multiplier)
 	RemainingBurstCount = Count;
 	CurrentBurstMultiplier = Multiplier;
 
-	// ì¦‰ì‹œ ì²« ë°œì‚¬ ì‹¤í–‰
+	// Áï½Ã Ã¹ ¹ß»ç ½ÇÇà
 	ExecuteShot();
 
-	// ë‚¨ì€ ë°œì‚¬ìˆ˜ê°€ ìˆë‹¤ë©´ íƒ€ì´ë¨¸ ì„¤ì •
+	// ³²Àº ¹ß»ç¼ö°¡ ÀÖ´Ù¸é Å¸ÀÌ¸Ó ¼³Á¤
 	if (RemainingBurstCount > 0)
 	{
 		GetWorldTimerManager().SetTimer(BurstTimerHandle, this, &AWeapon::ExecuteShot, BurstInterval, true);
@@ -88,7 +88,7 @@ void AWeapon::ExecuteShot()
        FVector SpawnLocation = FirePosition->GetComponentLocation();
        FRotator SpawnRotation = FRotator::ZeroRotator;
        
-       // ---------------- [ì—ì„ ì •ì¤‘ì•™ ì¡°ì¤€ ë¡œì§ ì¶”ê°€] ----------------
+       // ---------------- [¿¡ÀÓ Á¤Áß¾Ó Á¶ÁØ ·ÎÁ÷ Ãß°¡] ----------------
        APlayerController* PC = nullptr;
        if (APawn* OwnerPawn = Cast<APawn>(GetOwner()))
        {
@@ -97,32 +97,32 @@ void AWeapon::ExecuteShot()
 
        if (PC != nullptr && PC->PlayerCameraManager != nullptr)
        {
-           // 1. ì¹´ë©”ë¼ì˜ í˜„ì¬ ìœ„ì¹˜ì™€ ì •ë©´ ë°©í–¥ ë²¡í„°ë¥¼ ê°€ì ¸ì˜µë‹ˆë‹¤.
+           // 1. Ä«¸Ş¶óÀÇ ÇöÀç À§Ä¡¿Í Á¤¸é ¹æÇâ º¤ÅÍ¸¦ °¡Á®¿É´Ï´Ù.
            FVector CameraLocation = PC->PlayerCameraManager->GetCameraLocation();
            FVector CameraForward = PC->PlayerCameraManager->GetCameraRotation().Vector();
 
-           // 2. í™”ë©´ ì¤‘ì•™ ì—ì„ì´ ë„ë‹¬í•  ê°€ìƒì˜ ëì  (ì¶©ë¶„íˆ ë¨¼ ê±°ë¦¬: 10,000 ìœ ë‹›)
+           // 2. È­¸é Áß¾Ó ¿¡ÀÓÀÌ µµ´ŞÇÒ °¡»óÀÇ ³¡Á¡ (ÃæºĞÈ÷ ¸Õ °Å¸®: 10,000 À¯´Ö)
            FVector TraceEnd = CameraLocation + (CameraForward * 10000.0f);
 
            FHitResult HitResult;
            FCollisionQueryParams TraceParams;
-           TraceParams.AddIgnoredActor(this);          // ë¬´ê¸° ìì‹  ë¬´ì‹œ
-           TraceParams.AddIgnoredActor(GetOwner());    // í”Œë ˆì´ì–´ ë¬´ì‹œ
+           TraceParams.AddIgnoredActor(this);          // ¹«±â ÀÚ½Å ¹«½Ã
+           TraceParams.AddIgnoredActor(GetOwner());    // ÇÃ·¹ÀÌ¾î ¹«½Ã
 
-           // 3. ì¹´ë©”ë¼ ì •ì¤‘ì•™ì—ì„œ ë ˆì´ì €(Line Trace)ë¥¼ ì©ë‹ˆë‹¤.
+           // 3. Ä«¸Ş¶ó Á¤Áß¾Ó¿¡¼­ ·¹ÀÌÀú(Line Trace)¸¦ ½õ´Ï´Ù.
            FVector TargetTargetLocation = TraceEnd;
            if (GetWorld()->LineTraceSingleByChannel(HitResult, CameraLocation, TraceEnd, ECC_Visibility, TraceParams))
            {
-               // ë¬´ì–¸ê°€(ë²½, ì )ì— ë¶€ë”ªí˜”ë‹¤ë©´ ê·¸ ì¶©ëŒ ì§€ì ì„ íƒ€ê²Ÿìœ¼ë¡œ ì¡ìŠµë‹ˆë‹¤.
+               // ¹«¾ğ°¡(º®, Àû)¿¡ ºÎµúÇû´Ù¸é ±× Ãæµ¹ ÁöÁ¡À» Å¸°ÙÀ¸·Î Àâ½À´Ï´Ù.
                TargetTargetLocation = HitResult.ImpactPoint;
            }
 
-           // 4. [í•µì‹¬] ì´êµ¬ ìœ„ì¹˜ì—ì„œ ë ˆì´ì €ê°€ ë¶€ë”ªíŒ ì •ì¤‘ì•™ íƒ€ê²Ÿ ì§€ì ì„ ë°”ë¼ë³´ëŠ” íšŒì „ ê°ë„ë¥¼ ê³„ì‚°í•©ë‹ˆë‹¤!
+           // 4. [ÇÙ½É] ÃÑ±¸ À§Ä¡¿¡¼­ ·¹ÀÌÀú°¡ ºÎµúÈù Á¤Áß¾Ó Å¸°Ù ÁöÁ¡À» ¹Ù¶óº¸´Â È¸Àü °¢µµ¸¦ °è»êÇÕ´Ï´Ù!
            SpawnRotation = UKismetMathLibrary::FindLookAtRotation(SpawnLocation, TargetTargetLocation);
        }
        else
        {
-           // ì»¨íŠ¸ë¡¤ëŸ¬ê°€ ì—†ëŠ” AI ë“±ì˜ ì˜ˆì™¸ ìƒí™©ì—” ê¸°ì¡´ ì´êµ¬ ë°©í–¥ ì²˜ë¦¬
+           // ÄÁÆ®·Ñ·¯°¡ ¾ø´Â AI µîÀÇ ¿¹¿Ü »óÈ²¿£ ±âÁ¸ ÃÑ±¸ ¹æÇâ Ã³¸®
            SpawnRotation = FirePosition->GetComponentRotation();
        }
        // -------------------------------------------------------------
@@ -163,25 +163,25 @@ void AWeapon::Reload()
 	bIsReloading = true;
 	UE_LOG(LogTemp, Warning, TEXT("Reload Started... Wait %f sec"), ReloadSpeed);
 
-	// ì¬ì¥ì „ ì‚¬ìš´ë“œ ì¬ìƒ
+	// ÀçÀåÀü »ç¿îµå Àç»ı
 	if (ReloadSound)
 	{
-		// ì¬ì¥ì „ ì‹œê°„(ReloadSpeed)ì— ë§ê²Œ í”¼ì¹˜ ê³„ì‚°
+		// ÀçÀåÀü ½Ã°£(ReloadSpeed)¿¡ ¸Â°Ô ÇÇÄ¡ °è»ê
 		float SoundDuration = ReloadSound->GetDuration();
 		
-		// í”¼ì¹˜ = ì›ë³¸ ì†Œë¦¬ ê¸¸ì´ / ëª©í‘œ ì¬ì¥ì „ ì‹œê°„
+		// ÇÇÄ¡ = ¿øº» ¼Ò¸® ±æÀÌ / ¸ñÇ¥ ÀçÀåÀü ½Ã°£
 		float Pitch = SoundDuration / ReloadSpeed;
 
 		UGameplayStatics::PlaySoundAtLocation(this, ReloadSound, GetActorLocation(), FRotator::ZeroRotator, 1.0f, Pitch, ReloadSoundStartTime);
 	}
 
-	APlayerCharacter* Player = Cast<APlayerCharacter>(GetOwner());
+	ACombatPlayerCharacter* Player = Cast<ACombatPlayerCharacter>(GetOwner());
 	if (Player)
 	{
 		Player->UpdateReloadingHUD(true);
 	}
 	
-	// ì¬ì¥ì „ íƒ€ì´ë¨¸ ëŒë¦¬ê¸°
+	// ÀçÀåÀü Å¸ÀÌ¸Ó µ¹¸®±â
 	GetWorld()->GetTimerManager().SetTimer(
 		ReloadTimerHandle,
 		this,
@@ -197,7 +197,7 @@ void AWeapon::OnReloadComplete()
 	CurrentAmmo = MaxAmmo;
 	UE_LOG(LogTemp, Warning, TEXT("Reload Complete! Ammo: %d"), CurrentAmmo);
 
-	APlayerCharacter* Player = Cast<APlayerCharacter>(GetOwner());
+	ACombatPlayerCharacter* Player = Cast<ACombatPlayerCharacter>(GetOwner());
 	if (Player)
 	{
 		Player->UpdateReloadingHUD(false);
@@ -208,11 +208,11 @@ void AWeapon::OnReloadComplete()
 
 void AWeapon::UpdatePlayerHUD()
 {
-	// ì´ ë¬´ê¸°ì˜ ì†Œìœ ì(Owner)ë¥¼ í”Œë ˆì´ì–´ Pawnìœ¼ë¡œ ìºìŠ¤íŒ…í•©ë‹ˆë‹¤.
-	APlayerCharacter* Player = Cast<APlayerCharacter>(GetOwner());
+	// ÀÌ ¹«±âÀÇ ¼ÒÀ¯ÀÚ(Owner)¸¦ ÇÃ·¹ÀÌ¾î PawnÀ¸·Î Ä³½ºÆÃÇÕ´Ï´Ù.
+	ACombatPlayerCharacter* Player = Cast<ACombatPlayerCharacter>(GetOwner());
 	if (Player != nullptr)
 	{
-		// í”Œë ˆì´ì–´ì—ê²Œ í˜„ì¬ ë‚¨ì€ íƒ„ì•½ ì •ë³´ë¥¼ ë„˜ê²¨ì£¼ë©° UI ê°±ì‹ ì„ ìš”ì²­í•©ë‹ˆë‹¤.
+		// ÇÃ·¹ÀÌ¾î¿¡°Ô ÇöÀç ³²Àº Åº¾à Á¤º¸¸¦ ³Ñ°ÜÁÖ¸ç UI °»½ÅÀ» ¿äÃ»ÇÕ´Ï´Ù.
 		Player->UpdateAmmoHUD(CurrentAmmo, MaxAmmo);
 	}
 }

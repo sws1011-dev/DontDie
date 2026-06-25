@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "gamemode/DontDieGameModeBase.h"
@@ -10,7 +10,7 @@
 #include "Kismet/GameplayStatics.h"
 
 #include "data/DontDieSaveGame.h"
-#include "player/PlayerCharacter.h"
+#include "player/CombatPlayerCharacter.h"
 
 void ADontDieGameModeBase::BeginPlay()
 {
@@ -49,7 +49,7 @@ void ADontDieGameModeBase::SpawnZombieGroup()
 		APlayerController* PC = GetWorld()->GetFirstPlayerController();
 		if (PC)
 		{
-			APlayerCharacter* Player = Cast<APlayerCharacter>(PC->GetPawn());
+			ACombatPlayerCharacter* Player = Cast<ACombatPlayerCharacter>(PC->GetPawn());
 			if (Player)
 			{
 				Player->RefreshHUD();
@@ -60,15 +60,15 @@ void ADontDieGameModeBase::SpawnZombieGroup()
 
 void ADontDieGameModeBase::StartWave()
 {
-	bIsWaveEnding = false; // 새 웨이브 시작 시 플래그 초기화
+	bIsWaveEnding = false; // ???⑥씠釉??쒖옉 ???뚮옒洹?珥덇린??
 	TimeElapsedInWave = 0.0f;
 
-	// 10웨이브마다 시간과 스폰 수를 초기화하기 위해 상대적 웨이브 값 계산 (1~10 반복)
+	// 10?⑥씠釉뚮쭏???쒓컙怨??ㅽ룿 ?섎? 珥덇린?뷀븯湲??꾪빐 ?곷????⑥씠釉?媛?怨꾩궛 (1~10 諛섎났)
 	int32 RelativeWave = ((CurrentWave - 1) % 10) + 1;
 
 	WaveDuration = 5.0f + (RelativeWave * 5.0f);
 
-	// 웨이브 공식: 상대적 웨이브에 따라 스폰 수 결정 (10, 15, 20... 55마리 후 다시 10마리)
+	// ?⑥씠釉?怨듭떇: ?곷????⑥씠釉뚯뿉 ?곕씪 ?ㅽ룿 ??寃곗젙 (10, 15, 20... 55留덈━ ???ㅼ떆 10留덈━)
 	TotalEnemiesInWave = 5 + (RelativeWave * 5);
 	RemainingEnemyToSpawn = TotalEnemiesInWave;
 
@@ -88,11 +88,11 @@ void ADontDieGameModeBase::UpdateWaveTimer()
 	APlayerController* PC = GetWorld()->GetFirstPlayerController();
 	if (PC)
 	{
-		APlayerCharacter* Player = Cast<APlayerCharacter>(PC->GetPawn());
+		ACombatPlayerCharacter* Player = Cast<ACombatPlayerCharacter>(PC->GetPawn());
 		if (Player) Player->RefreshHUD();
 	}
 
-	// 매 틱(0.1초)마다 종료 조건을 확인하여, 마지막 적이 죽은 후 즉시 반응하도록 합니다.
+	// 留???0.1珥?留덈떎 醫낅즺 議곌굔???뺤씤?섏뿬, 留덉?留??곸씠 二쎌? ??利됱떆 諛섏쓳?섎룄濡??⑸땲??
 	CheckWaveEnd();
 
 	if (TimeElapsedInWave >= WaveDuration)
@@ -143,14 +143,14 @@ void ADontDieGameModeBase::OnSurvivorRemoved()
 
 void ADontDieGameModeBase::CheckWaveEnd()
 {
-	// 이미 웨이브 종료 중이거나 타이머가 돌아가고 있다면 무시
+	// ?대? ?⑥씠釉?醫낅즺 以묒씠嫄곕굹 ??대㉧媛 ?뚯븘媛怨??덈떎硫?臾댁떆
 	if (bIsWaveEnding || GetWorldTimerManager().IsTimerActive(WaveEndDelayTimerHandle)) return;
 
 	if (CurrentAliveEnemyCount <= 0 && CurrentAliveSurvivorCount <= 0)
 	{
 		if (RemainingEnemyToSpawn <= 0 || TimeElapsedInWave >= WaveDuration)
 		{
-			// 즉시 종료하지 않고, 약간의 지연 시간을 두어 사운드나 UI 연출이 끝나게 함
+			// 利됱떆 醫낅즺?섏? ?딄퀬, ?쎄컙??吏???쒓컙???먯뼱 ?ъ슫?쒕굹 UI ?곗텧???앸굹寃???
 			GetWorldTimerManager().SetTimer(WaveEndDelayTimerHandle, this, &ADontDieGameModeBase::EndWave, WaveEndDelay, false);
 			UE_LOG(LogTemp, Warning, TEXT("Wave Conditions Met. Ending Wave in %f seconds..."), WaveEndDelay);
 		}
@@ -159,11 +159,11 @@ void ADontDieGameModeBase::CheckWaveEnd()
 
 void ADontDieGameModeBase::EndWave()
 {
-	// 중복 실행 방지
+	// 以묐났 ?ㅽ뻾 諛⑹?
 	if (bIsWaveEnding) return;
 	bIsWaveEnding = true;
 
-	// 타이머 일시 정지
+	// ??대㉧ ?쇱떆 ?뺤?
 	GetWorldTimerManager().ClearTimer(WaveTimerHandle);
 	GetWorldTimerManager().ClearTimer(SpawnTimerHandle);
 
@@ -191,7 +191,7 @@ void ADontDieGameModeBase::EndWave()
 		}
 	}
 
-	// 게임 일시정지는 맨 마지막에 가동합니다.
+	// 寃뚯엫 ?쇱떆?뺤???留?留덉?留됱뿉 媛?숉빀?덈떎.
 	UGameplayStatics::SetGamePaused(GetWorld(), true);
 }
 
@@ -200,7 +200,7 @@ void ADontDieGameModeBase::MoveToNextWave()
 	APlayerController* PC = GetWorld()->GetFirstPlayerController();
 	if (PC)
 	{
-		// 다시 게임 플레이를 위해 마우스 커서는 유지하되(회전용), 게임 입력도 받도록 설정
+		// ?ㅼ떆 寃뚯엫 ?뚮젅?대? ?꾪빐 留덉슦??而ㅼ꽌???좎??섎릺(?뚯쟾??, 寃뚯엫 ?낅젰??諛쏅룄濡??ㅼ젙
 		PC->SetShowMouseCursor(false);
 
 		FInputModeGameOnly InputMode;
@@ -228,11 +228,11 @@ void ADontDieGameModeBase::FinalizeGold()
 
 	CurrentGold = 0;
 
-	// UI 갱신을 위해 플레이어 HUD 새로고침 호출
+	// UI 媛깆떊???꾪빐 ?뚮젅?댁뼱 HUD ?덈줈怨좎묠 ?몄텧
 	APlayerController* PC = GetWorld()->GetFirstPlayerController();
 	if (PC)
 	{
-		APlayerCharacter* Player = Cast<APlayerCharacter>(PC->GetPawn());
+		ACombatPlayerCharacter* Player = Cast<ACombatPlayerCharacter>(PC->GetPawn());
 		if (Player) Player->RefreshHUD();
 	}
 }
@@ -268,36 +268,36 @@ void ADontDieGameModeBase::SaveTotalGold()
 	}
 }
 
-void ADontDieGameModeBase::ApplyPersistentUpgrades(APlayerCharacter* Player)
+void ADontDieGameModeBase::ApplyPersistentUpgrades(ACombatPlayerCharacter* Player)
 {
 	if (!Player) return;
 
-	// 영구 이동 속도
+	// ?곴뎄 ?대룞 ?띾룄
 	if (UpgradeLevels.Contains(TEXT("MoveSpeed")))
 	{
 		Player->MoveSpeed += UpgradeLevels[TEXT("MoveSpeed")] * 20.0f;
 	}
 
-	// 영구 최대 체력
+	// ?곴뎄 理쒕? 泥대젰
 	if (UpgradeLevels.Contains(TEXT("MaxHP")))
 	{
 		Player->MaxHP += UpgradeLevels[TEXT("MaxHP")] * 10.0f;
 		Player->CurrentHP = Player->MaxHP;
 	}
 
-	// 영구 크리티컬 확률
+	// ?곴뎄 ?щ━?곗뺄 ?뺣쪧
 	if (UpgradeLevels.Contains(TEXT("CritChance")))
 	{
 		Player->CritChance += UpgradeLevels[TEXT("CritChance")] * 0.02f;
 	}
 
-	// 영구 목숨 추가
+	// ?곴뎄 紐⑹닲 異붽?
 	if (UpgradeLevels.Contains(TEXT("LifeCount")))
 	{
 		Player->CurrentLifeCount += UpgradeLevels[TEXT("LifeCount")];
 	}
 
-	// 영구 골드 배율
+	// ?곴뎄 怨⑤뱶 諛곗쑉
 	if (UpgradeLevels.Contains(TEXT("CurrencyMultiplier")))
 	{
 		Player->CurrencyMultiplier += UpgradeLevels[TEXT("CurrencyMultiplier")] * 0.05f;
@@ -305,19 +305,19 @@ void ADontDieGameModeBase::ApplyPersistentUpgrades(APlayerCharacter* Player)
 
 	if (Player->CurrentWeapon)
 	{
-		// 영구 데미지
+		// ?곴뎄 ?곕?吏
 		if (UpgradeLevels.Contains(TEXT("BaseDamage")))
 		{
 			Player->CurrentWeapon->BaseDamage += UpgradeLevels[TEXT("BaseDamage")] * 2.0f;
 		}
 
-		// 영구 연사 속도
+		// ?곴뎄 ?곗궗 ?띾룄
 		if (UpgradeLevels.Contains(TEXT("FireRate")))
 		{
 			Player->CurrentWeapon->FireRate += UpgradeLevels[TEXT("FireRate")] * 0.2f;
 		}
 
-		// 영구 최대 장탄수
+		// ?곴뎄 理쒕? ?ν깂??
 		if (UpgradeLevels.Contains(TEXT("MaxAmmo")))
 		{
 			Player->CurrentWeapon->MaxAmmo += UpgradeLevels[TEXT("MaxAmmo")] * 2;
@@ -365,44 +365,44 @@ TArray<FUpgradeCardData> ADontDieGameModeBase::GenerateUpgradeOptions()
 		switch (PickedType)
 		{
 		case EUpgradeType::MoveSpeed:
-			NewCard.DisplayName = TEXT("경량화 신발");
-			NewCard.Description = TEXT("이동 속도가 50 증가합니다.");
+			NewCard.DisplayName = TEXT("Move Speed");
+			NewCard.Description = TEXT("Move speed increases by 50.");
 			break;
 		case EUpgradeType::MaxHP:
-			NewCard.DisplayName = TEXT("강인한 체력");
-			NewCard.Description = TEXT("최대 체력이 20 증가합니다.");
+			NewCard.DisplayName = TEXT("Max HP");
+			NewCard.Description = TEXT("Max HP increases by 20.");
 			break;
 		case EUpgradeType::CritChance:
-			NewCard.DisplayName = TEXT("치명적 약점");
-			NewCard.Description = TEXT("크리티컬 확률이 5% 증가합니다.");
+			NewCard.DisplayName = TEXT("Critical Chance");
+			NewCard.Description = TEXT("Critical chance increases by 5%.");
 			break;
 		case EUpgradeType::ProjectileCount:
-			NewCard.DisplayName = TEXT("다탄두 장전");
-			NewCard.Description = TEXT("발사되는 투사체의 개수가 1개 증가합니다.");
+			NewCard.DisplayName = TEXT("Projectile Count");
+			NewCard.Description = TEXT("Projectile count increases by 1.");
 			break;
 		case EUpgradeType::LifeCount:
-			NewCard.DisplayName = TEXT("비상용 심장");
-			NewCard.Description = TEXT("부활할 수 있는 목숨이 1개 추가됩니다.");
+			NewCard.DisplayName = TEXT("Extra Life");
+			NewCard.Description = TEXT("Life count increases by 1.");
 			break;
 		case EUpgradeType::CurrencyMultiplier:
-			NewCard.DisplayName = TEXT("황금 나침반");
-			NewCard.Description = TEXT("재화 획득량이 15% 증가합니다.");
+			NewCard.DisplayName = TEXT("Currency Multiplier");
+			NewCard.Description = TEXT("Currency gain increases by 15%.");
 			break;
 		case EUpgradeType::BaseDamage:
-			NewCard.DisplayName = TEXT("강화 화약");
-			NewCard.Description = TEXT("무기 기본 공격력이 5 증가합니다.");
+			NewCard.DisplayName = TEXT("Base Damage");
+			NewCard.Description = TEXT("Weapon base damage increases by 5.");
 			break;
 		case EUpgradeType::FireRate:
-			NewCard.DisplayName = TEXT("고속 연사");
-			NewCard.Description = TEXT("무기의 공격 속도가 빨라집니다.");
+			NewCard.DisplayName = TEXT("Fire Rate");
+			NewCard.Description = TEXT("Weapon fire rate increases.");
 			break;
 		case EUpgradeType::MaxAmmo:
-			NewCard.DisplayName = TEXT("대용량 탄창");
-			NewCard.Description = TEXT("최대 장탄수가 4발 증가합니다.");
+			NewCard.DisplayName = TEXT("Max Ammo");
+			NewCard.Description = TEXT("Max ammo increases by 4.");
 			break;
 		case EUpgradeType::ReloadSpeed:
-			NewCard.DisplayName = TEXT("전술 재장전");
-			NewCard.Description = TEXT("재장전 시간이 단축됩니다.");
+			NewCard.DisplayName = TEXT("Reload Speed");
+			NewCard.Description = TEXT("Reload time decreases.");
 			break;
 		}
 
@@ -417,7 +417,7 @@ void ADontDieGameModeBase::ApplyUpgrade(EUpgradeType ChosenUpgrade)
 	APlayerController* PC = GetWorld()->GetFirstPlayerController();
 	if (!PC) return;
 
-	APlayerCharacter* Player = Cast<APlayerCharacter>(PC->GetPawn());
+	ACombatPlayerCharacter* Player = Cast<ACombatPlayerCharacter>(PC->GetPawn());
 	if (!Player)
 	{
 		return;
@@ -477,7 +477,7 @@ void ADontDieGameModeBase::AddGold(int32 Amount)
 	APlayerController* PC = GetWorld()->GetFirstPlayerController();
 	if (PC)
 	{
-		APlayerCharacter* Player = Cast<APlayerCharacter>(PC->GetPawn());
+		ACombatPlayerCharacter* Player = Cast<ACombatPlayerCharacter>(PC->GetPawn());
 		if (Player) Player->RefreshHUD();
 	}
 }

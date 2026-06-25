@@ -13,17 +13,17 @@
 UENUM(BlueprintType)
 enum class EUpgradeType : uint8
 {
-	MoveSpeed UMETA(DisplayName = "이동 속도 증가"),
-	MaxHP UMETA(DisplayName = "최대 체력 증가"),
-	CritChance UMETA(DisplayName = "크리티컬 확률 증가"),
-	ProjectileCount UMETA(DisplayName = "투사체 개수 증가"),
-	LifeCount UMETA(DisplayName = "목숨 추가"),
-	CurrencyMultiplier UMETA(DisplayName = "재화 획득량 증가"),
-	BaseDamage UMETA(DisplayName = "무기 데미지 증가"),
-	FireRate UMETA(DisplayName = "공격 속도 증가"),
-	MaxAmmo UMETA(DisplayName = "최대 장탄수 증가"),
-	ReloadSpeed UMETA(DisplayName = "재장전 속도 감소"),
-	MAX_COUNT UMETA(Hidden) // 총 개수 체크용
+	MoveSpeed UMETA(DisplayName = "?�동 ?�도 증�?"),
+	MaxHP UMETA(DisplayName = "최�? 체력 증�?"),
+	CritChance UMETA(DisplayName = "?�리?�컬 ?�률 증�?"),
+	ProjectileCount UMETA(DisplayName = "?�사�?개수 증�?"),
+	LifeCount UMETA(DisplayName = "목숨 추�?"),
+	CurrencyMultiplier UMETA(DisplayName = "?�화 ?�득??증�?"),
+	BaseDamage UMETA(DisplayName = "무기 ?��?지 증�?"),
+	FireRate UMETA(DisplayName = "공격 ?�도 증�?"),
+	MaxAmmo UMETA(DisplayName = "최�? ?�탄??증�?"),
+	ReloadSpeed UMETA(DisplayName = "?�장???�도 감소"),
+	MAX_COUNT UMETA(Hidden) // �?개수 체크??
 };
 
 USTRUCT(BlueprintType)
@@ -52,17 +52,17 @@ public:
 	int32 CurrentWave = 1;
 	int32 MaxWave = 100;
 
-	// 웨이브가 5씩 진행될 때마다 적용될 좀비 스탯 증가 수치
+	// ?�이브�? 5??진행???�마???�용??좀�??�탯 증�? ?�치
 	UPROPERTY(EditAnywhere, Category = "Wave System|Scaling")
 	float HealthIncrementPer5Waves = 20.0f;
 
 	UPROPERTY(EditAnywhere, Category = "Wave System|Scaling")
 	float AttackPowerIncrementPer5Waves = 5.0f;
 
-	// 시간 기반 웨이브 변수들
-	float WaveDuration; // 이번 웨이브의 총 제한 시간
-	float TimeElapsedInWave; // 현재 경과 시간
-	FTimerHandle WaveTimerHandle; // 웨이브 전체 시간(제한 시간)용 타이머
+	// ?�간 기반 ?�이�?변?�들
+	float WaveDuration; // ?�번 ?�이브의 �??�한 ?�간
+	float TimeElapsedInWave; // ?�재 경과 ?�간
+	FTimerHandle WaveTimerHandle; // ?�이�??�체 ?�간(?�한 ?�간)???�?�머
 
 	int32 TotalEnemiesInWave;
 	int32 RemainingEnemyToSpawn;
@@ -74,7 +74,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Wave System")
 	TArray<FUpgradeCardData> GenerateUpgradeOptions();
 
-	// UI에서 카드를 클릭했을 때 어떤 능력치인지 넘겨받아 실제 반영하는 함수
+	// UI?�서 카드�??�릭?�을 ???�떤 ?�력치인지 ?�겨받아 ?�제 반영?�는 ?�수
 	UFUNCTION(BlueprintCallable, Category = "Wave System")
 	void ApplyUpgrade(EUpgradeType ChosenUpgrade);
 
@@ -89,13 +89,13 @@ public:
 	void StartWave();
 	void SpawnZombieGroup();
 
-	// 내부 시간 갱신 함수
+	// ?��? ?�간 갱신 ?�수
 	void UpdateWaveTimer();
 	void EndWave();
 
 	bool bIsWaveEnding = false;
 
-	// 모든 적이 처치되었는지 확인하고 웨이브를 종료하는 함수
+	// 모든 ?�이 처치?�었?��? ?�인?�고 ?�이브�? 종료?�는 ?�수
 	void CheckWaveEnd();
 
 	UPROPERTY(EditAnywhere, Category = "Wave System")
@@ -103,7 +103,7 @@ public:
 
 	FTimerHandle WaveEndDelayTimerHandle;
 
-	// 블루프린트 보상 UI에서 선택이 끝나면 호출할 함수
+	// 블루?�린??보상 UI?�서 ?�택???�나�??�출???�수
 	UFUNCTION(BlueprintCallable, Category = "Wave System")
 	void MoveToNextWave();
 
@@ -113,33 +113,33 @@ public:
 	UFUNCTION(BlueprintPure, Category = "WaveSystem")
 	float GetWaveProgress() const;
 
-	// 플레이어 현재 보유 재화
+	// ?�레?�어 ?�재 보유 ?�화
 	UPROPERTY(BlueprintReadOnly, Category = "Economy")
 	int32 CurrentGold = 0;
 
-	// 영구 보관되는 전체 재화
+	// ?�구 보�??�는 ?�체 ?�화
 	UPROPERTY(BlueprintReadOnly, Category = "Economy")
 	int32 TotalGold = 0;
 
-	// 영구 업그레이드 레벨 데이터
+	// ?�구 ?�그?�이???�벨 ?�이??
 	UPROPERTY(BlueprintReadOnly, Category = "Economy")
 	TMap<FString, int32> UpgradeLevels;
 
-	// 민간인 탈출 성공 시 지급할 기본 보상 액수
+	// 민간???�출 ?�공 ??지급할 기본 보상 ?�수
 	UPROPERTY(EditDefaultsOnly, Category = "Economy")
 	int32 CivilianRescueReward = 100;
 
-	// 재화 추가 함수 (민간인 탈출 or 좀비 처치 시 호출)
+	// ?�화 추�? ?�수 (민간???�출 or 좀�?처치 ???�출)
 	UFUNCTION(BlueprintCallable, Category = "Economy")
 	void AddGold(int32 Amount);
 
-	// 세션 종료 시 현재 골드를 전체 골드에 합산하는 함수
+	// ?�션 종료 ???�재 골드�??�체 골드???�산?�는 ?�수
 	UFUNCTION(BlueprintCallable, Category = "Economy")
 	void FinalizeGold();
 
-	// 저장된 영구 업그레이드 수치를 플레이어에게 적용하는 함수
+	// ?�?�된 ?�구 ?�그?�이???�치�??�레?�어?�게 ?�용?�는 ?�수
 	UFUNCTION(BlueprintCallable, Category = "Economy")
-	void ApplyPersistentUpgrades(class APlayerCharacter* Player);
+	void ApplyPersistentUpgrades(class ACombatPlayerCharacter* Player);
 
 private:
 	void LoadTotalGold();
