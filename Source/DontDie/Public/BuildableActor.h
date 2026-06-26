@@ -26,6 +26,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Preview")
 	class UMaterialInterface* InvalidPreviewMaterial = nullptr;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Preview")
+	class UMaterialInterface* HoverPreviewMaterial = nullptr;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Build|Data")
+	FName BuildingRowName = NAME_None;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Build|Data")
+	FName BuildingTypeID = NAME_None;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Build|Data")
+	int32 Tier = 1;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Size", meta = (ClampMin = "1.0"))
 	FVector2D FootprintSize = FVector2D(40.0f, 40.0f);
 
@@ -42,7 +54,13 @@ public:
 	void SetPlacementValid(bool bIsValid);
 
 	UFUNCTION(BlueprintCallable, Category = "Build")
+	void SetPreviewHighlighted(bool bHighlighted);
+
+	UFUNCTION(BlueprintCallable, Category = "Build")
 	void SetDemolitionPreview(bool bEnabled);
+
+	UFUNCTION(BlueprintCallable, Category = "Build")
+	void SetHoverPreview(bool bEnabled);
 
 	UFUNCTION(BlueprintCallable, Category = "Build")
 	void FinalizeBuild();
@@ -56,16 +74,25 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Build")
 	void SetBuildMesh(class UStaticMesh* NewMesh);
 
+	UFUNCTION(BlueprintCallable, Category = "Build")
+	void SetBuildingData(FName NewBuildingRowName, FName NewBuildingTypeID, int32 NewTier);
+
 	virtual void OnConstruction(const FTransform& Transform) override;
 
 private:
 	bool bPreviewMode = false;
 	bool bDemolitionPreview = false;
+	bool bHoverPreview = false;
+	
+	UPROPERTY()
+	class UMaterialInstanceDynamic* RuntimeHoverPreviewMaterial = nullptr;
+
 	TMap<class UMeshComponent*, TArray<class UMaterialInterface*>> OriginalMaterials;
 
 	void CacheOriginalMaterials();
 	void RestoreOriginalMaterials();
 	void SetActorCollisionEnabled(bool bEnabled);
+	class UMaterialInterface* GetHoverPreviewMaterial();
 	void ApplyMaterial(class UMaterialInterface* Material);
 	void UpdateStaticMeshSize();
 };

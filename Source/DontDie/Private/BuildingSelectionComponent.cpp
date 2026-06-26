@@ -120,7 +120,12 @@ bool UBuildingSelectionComponent::SelectClosestTierForType(FName BuildingTypeID,
 
 bool UBuildingSelectionComponent::SelectTierForCurrentType(int32 Tier)
 {
-	if (Tier < 1)
+	return SelectTierForType(CurrentBuildingTypeID, Tier);
+}
+
+bool UBuildingSelectionComponent::SelectTierForType(FName BuildingTypeID, int32 Tier)
+{
+	if (Tier < 1 || BuildingTypeID.IsNone())
 	{
 		return false;
 	}
@@ -128,9 +133,9 @@ bool UBuildingSelectionComponent::SelectTierForCurrentType(int32 Tier)
 	for (int32 Index = 0; Index < BuildingRowNames.Num(); ++Index)
 	{
 		const FBuildingDataRow* BuildingData = BuildingDataTable != nullptr
-			? BuildingDataTable->FindRow<FBuildingDataRow>(BuildingRowNames[Index], TEXT("BuildingSelectionComponent::SelectTierForCurrentType"))
+			? BuildingDataTable->FindRow<FBuildingDataRow>(BuildingRowNames[Index], TEXT("BuildingSelectionComponent::SelectTierForType"))
 			: nullptr;
-		if (BuildingData != nullptr && BuildingData->BuildingTypeID == CurrentBuildingTypeID && BuildingData->Tier == Tier)
+		if (BuildingData != nullptr && BuildingData->BuildingTypeID == BuildingTypeID && BuildingData->Tier == Tier)
 		{
 			return SelectBuildingByIndex(Index);
 		}

@@ -5,15 +5,46 @@
 
 #include "BuildingSelectionComponent.h"
 #include "CampBuildComponent.h"
+#include "ConstructionSiteActor.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "Camera/PlayerCameraManager.h"
+#include "GameFramework/PlayerController.h"
+#include "InputAction.h"
 #include "InputActionValue.h"
+#include "UObject/ConstructorHelpers.h"
+#include "widget/BuildShortcutHintWidget.h"
+#include "widget/BuildingListWidget.h"
 
 ACampPlayerCharacter::ACampPlayerCharacter()
 {
 	BuildingSelectionComponent = CreateDefaultSubobject<UBuildingSelectionComponent>(TEXT("BuildingSelectionComponent"));
 	CampBuildComponent = CreateDefaultSubobject<UCampBuildComponent>(TEXT("CampBuildComponent"));
 	CampBuildComponent->SetBuildingSelectionComponent(BuildingSelectionComponent);
+
+	static ConstructorHelpers::FObjectFinder<UInputAction> ToggleBuildListActionFinder(TEXT("/Game/Inputs/IA_ToggleBuildList.IA_ToggleBuildList"));
+	if (ToggleBuildListActionFinder.Succeeded())
+	{
+		IaToggleBuildList = ToggleBuildListActionFinder.Object;
+	}
+
+	static ConstructorHelpers::FObjectFinder<UInputAction> InteractActionFinder(TEXT("/Game/Inputs/IA_Interact.IA_Interact"));
+	if (InteractActionFinder.Succeeded())
+	{
+		IaInteract = InteractActionFinder.Object;
+	}
+
+}
+
+void ACampPlayerCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (CampBuildComponent != nullptr)
+	{
+		CampBuildComponent->OnBuildStateChanged.AddDynamic(this, &ACampPlayerCharacter::HandleBuildStateChanged);
+		CampBuildComponent->OnBuildHoverChanged.AddDynamic(this, &ACampPlayerCharacter::HandleBuildHoverChanged);
+	}
 }
 
 void ACampPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -41,6 +72,11 @@ void ACampPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 		EnhancedInputComponent->BindAction(IaCancelBuild, ETriggerEvent::Started, this, &ACampPlayerCharacter::CancelBuild);
 	}
 
+	if (IaToggleBuildList != nullptr)
+	{
+		EnhancedInputComponent->BindAction(IaToggleBuildList, ETriggerEvent::Started, this, &ACampPlayerCharacter::ToggleBuildList);
+	}
+
 	if (IaRotateBuild != nullptr)
 	{
 		EnhancedInputComponent->BindAction(IaRotateBuild, ETriggerEvent::Started, this, &ACampPlayerCharacter::RotateBuild);
@@ -53,7 +89,7 @@ void ACampPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 
 	if (IaChangeBuildTier != nullptr)
 	{
-		EnhancedInputComponent->BindAction(IaChangeBuildTier, ETriggerEvent::Triggered, this, &ACampPlayerCharacter::ChangeBuildTier);
+		EnhancedInputComponent->BindAction(IaChangeBuildTier, ETriggerEvent::Started, this, &ACampPlayerCharacter::ChangeBuildTier);
 	}
 
 	if (IaToggleBuildEditMode != nullptr)
@@ -74,6 +110,11 @@ void ACampPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 	if (IaEditSelectedBuild != nullptr)
 	{
 		EnhancedInputComponent->BindAction(IaEditSelectedBuild, ETriggerEvent::Started, this, &ACampPlayerCharacter::EditSelectedBuild);
+	}
+
+	if (IaInteract != nullptr)
+	{
+		EnhancedInputComponent->BindAction(IaInteract, ETriggerEvent::Started, this, &ACampPlayerCharacter::Interact);
 	}
 }
 
@@ -97,9 +138,12 @@ void ACampPlayerCharacter::SetBuildMode(bool bEnabled)
 	if (bEnabled)
 	{
 		AddBuildMappingContext();
+		ShowBuildShortcutHintWidget();
 	}
 	else
 	{
+		HideBuildingListWidget();
+		HideBuildShortcutHintWidget();
 		RemoveBuildMappingContext();
 	}
 }
@@ -114,7 +158,29 @@ void ACampPlayerCharacter::ConfirmBuild()
 
 void ACampPlayerCharacter::CancelBuild()
 {
-	SetBuildMode(false);
+	if (CampBuildComponent != nullptr)
+	{
+		CampBuildComponent->CancelBuild();
+		HideBuildingListWidget();
+	}
+}
+
+void ACampPlayerCharacter::ToggleBuildList()
+{
+	if (CampBuildComponent == nullptr)
+	{
+		return;
+	}
+
+	CampBuildComponent->ToggleBuildList();
+	if (CampBuildComponent->IsBuildListOpen())
+	{
+		ShowBuildingListWidget();
+	}
+	else
+	{
+		HideBuildingListWidget();
+	}
 }
 
 void ACampPlayerCharacter::RotateBuild(const FInputActionValue& Value)
@@ -198,6 +264,45 @@ void ACampPlayerCharacter::EditSelectedBuild()
 	}
 }
 
+void ACampPlayerCharacter::Interact()
+{
+	CompleteLookedAtConstructionSite();
+}
+
+bool ACampPlayerCharacter::CompleteLookedAtConstructionSite() const
+{
+	if (PlayerController == nullptr || PlayerController->PlayerCameraManager == nullptr)
+	{
+		return false;
+	}
+
+	UWorld* World = GetWorld();
+	if (World == nullptr)
+	{
+		return false;
+	}
+
+	const FVector TraceStart = PlayerController->PlayerCameraManager->GetCameraLocation();
+	const FVector TraceEnd = TraceStart + PlayerController->PlayerCameraManager->GetCameraRotation().Vector() * InteractionTraceDistance;
+
+	FCollisionQueryParams QueryParams;
+	QueryParams.AddIgnoredActor(this);
+
+	FHitResult HitResult;
+	if (!World->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility, QueryParams))
+	{
+		return false;
+	}
+
+	AConstructionSiteActor* ConstructionSiteActor = Cast<AConstructionSiteActor>(HitResult.GetActor());
+	if (ConstructionSiteActor == nullptr)
+	{
+		return false;
+	}
+
+	return ConstructionSiteActor->CompleteConstruction() != nullptr;
+}
+
 void ACampPlayerCharacter::AddBuildMappingContext()
 {
 	if (PlayerController == nullptr || ImcBuild == nullptr)
@@ -228,4 +333,107 @@ void ACampPlayerCharacter::RemoveBuildMappingContext()
 	{
 		Subsys->RemoveMappingContext(ImcBuild);
 	}
+}
+
+void ACampPlayerCharacter::ShowBuildingListWidget()
+{
+	if (BuildingListWidgetClass == nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Building list widget is not assigned. Set BuildingListWidgetClass on BP_CampPlayerCharacter."));
+		return;
+	}
+
+	if (PlayerController == nullptr)
+	{
+		return;
+	}
+
+	if (BuildingListWidgetInstance == nullptr)
+	{
+		BuildingListWidgetInstance = CreateWidget<UBuildingListWidget>(PlayerController, BuildingListWidgetClass);
+		if (BuildingListWidgetInstance != nullptr)
+		{
+			BuildingListWidgetInstance->InitializeBuildingList(CampBuildComponent, BuildingSelectionComponent);
+			BuildingListWidgetInstance->AddToViewport();
+		}
+	}
+
+	if (BuildingListWidgetInstance != nullptr)
+	{
+		BuildingListWidgetInstance->InitializeBuildingList(CampBuildComponent, BuildingSelectionComponent);
+		BuildingListWidgetInstance->SetVisibility(ESlateVisibility::Visible);
+
+		PlayerController->SetShowMouseCursor(true);
+		FInputModeGameAndUI InputMode;
+		InputMode.SetWidgetToFocus(BuildingListWidgetInstance->TakeWidget());
+		PlayerController->SetInputMode(InputMode);
+	}
+}
+
+void ACampPlayerCharacter::HideBuildingListWidget()
+{
+	if (BuildingListWidgetInstance != nullptr)
+	{
+		BuildingListWidgetInstance->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	if (PlayerController != nullptr)
+	{
+		PlayerController->SetShowMouseCursor(false);
+		PlayerController->SetInputMode(FInputModeGameOnly());
+	}
+}
+
+void ACampPlayerCharacter::ShowBuildShortcutHintWidget()
+{
+	if (BuildShortcutHintWidgetClass == nullptr || PlayerController == nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Build shortcut hint widget class is not assigned. Set BuildShortcutHintWidgetClass on BP_CampPlayerCharacter."));
+		return;
+	}
+
+	if (BuildShortcutHintWidgetInstance == nullptr)
+	{
+		BuildShortcutHintWidgetInstance = CreateWidget<UBuildShortcutHintWidget>(PlayerController, BuildShortcutHintWidgetClass);
+		if (BuildShortcutHintWidgetInstance != nullptr)
+		{
+			BuildShortcutHintWidgetInstance->AddToViewport(10);
+		}
+	}
+
+	if (BuildShortcutHintWidgetInstance != nullptr)
+	{
+		RefreshBuildShortcutHintWidget();
+		BuildShortcutHintWidgetInstance->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+}
+
+void ACampPlayerCharacter::HideBuildShortcutHintWidget()
+{
+	if (BuildShortcutHintWidgetInstance != nullptr)
+	{
+		BuildShortcutHintWidgetInstance->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+void ACampPlayerCharacter::HandleBuildStateChanged(ECampBuildState NewBuildState)
+{
+	RefreshBuildShortcutHintWidget();
+}
+
+void ACampPlayerCharacter::HandleBuildHoverChanged(bool bHasHoveredBuildable)
+{
+	RefreshBuildShortcutHintWidget();
+}
+
+void ACampPlayerCharacter::RefreshBuildShortcutHintWidget()
+{
+	if (BuildShortcutHintWidgetInstance == nullptr || CampBuildComponent == nullptr)
+	{
+		return;
+	}
+
+	BuildShortcutHintWidgetInstance->RefreshForBuildState(
+		CampBuildComponent->GetBuildState(),
+		CampBuildComponent->HasHoveredBuildable());
 }

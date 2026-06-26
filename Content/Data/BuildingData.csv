@@ -1,16 +1,16 @@
-Name,DisplayName,CategoryID,BuildingTypeID,PriorityTier,Tier,RequiredBuildingID,BaseFunction,UpgradeFunction,BuildActorClass,StaticMesh,SizeX,SizeY,SizeZ
-BLD_WORKBENCH_T1,작업대 I,CAT_CRAFTING,WORKBENCH,1,1,None,기본 제작대,기본 레시피 언락,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Workbench_T1.SM_Workbench_T1,400,400,120
-BLD_WORKBENCH_T2,작업대 II,CAT_CRAFTING,WORKBENCH,1,2,BLD_WORKBENCH_T1,개량 제작대,고급 레시피 언락,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Workbench_T2.SM_Workbench_T2,440,420,150
-BLD_WORKBENCH_T3,작업대 III,CAT_CRAFTING,WORKBENCH,1,3,BLD_WORKBENCH_T2,전문 제작대,전문 레시피 언락,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Workbench_T3.SM_Workbench_T3,500,460,180
-BLD_STORAGE_T1,보관함 I,CAT_STORAGE,STORAGE,2,1,None,아이템 30칸 저장,저장 공간 확장,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Storage_T1.SM_Storage_T1,260,260,180
-BLD_STORAGE_T2,보관함 II,CAT_STORAGE,STORAGE,2,2,BLD_STORAGE_T1,아이템 60칸 저장,저장 공간 추가 확장,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Storage_T2.SM_Storage_T2,320,300,220
-BLD_STORAGE_T3,보관함 III,CAT_STORAGE,STORAGE,2,3,BLD_STORAGE_T2,아이템 100칸 저장,강화 보관 기능,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Storage_T3.SM_Storage_T3,380,340,260
-BLD_BED_T1,침대 I,CAT_REST,BED,3,1,None,기본 휴식,체력 회복량 증가,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Bed_T1.SM_Bed_T1,420,220,100
-BLD_BED_T2,침대 II,CAT_REST,BED,3,2,BLD_BED_T1,개량 휴식,피로 회복량 증가,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Bed_T2.SM_Bed_T2,460,240,130
-BLD_BED_T3,침대 III,CAT_REST,BED,3,3,BLD_BED_T2,고급 휴식,버프 지속시간 증가,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Bed_T3.SM_Bed_T3,520,260,160
-BLD_FARM_T1,농경지 I,CAT_FARM,FARM,4,1,None,기본 작물 재배,작물 성장속도 증가,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Farm_T1.SM_Farm_T1,500,500,80
-BLD_FARM_T2,농경지 II,CAT_FARM,FARM,4,2,BLD_FARM_T1,개량 작물 재배,수확량 증가,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Farm_T2.SM_Farm_T2,540,540,110
-BLD_FARM_T3,농경지 III,CAT_FARM,FARM,4,3,BLD_FARM_T2,고급 작물 재배,희귀 작물 재배,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Farm_T3.SM_Farm_T3,600,600,140
-BLD_FIREPIT_T1,화덕 I,CAT_COOKING,FIREPIT,5,1,None,기본 조리,조리 속도 증가,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Firepit_T1.SM_Firepit_T1,260,260,140
-BLD_FIREPIT_T2,화덕 II,CAT_COOKING,FIREPIT,5,2,BLD_FIREPIT_T1,개량 조리,제련 보조 기능,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Firepit_T2.SM_Firepit_T2,320,320,220
-BLD_FIREPIT_T3,화덕 III,CAT_COOKING,FIREPIT,5,3,BLD_FIREPIT_T2,고급 조리,고급 제련 보조,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Firepit_T3.SM_Firepit_T3,380,380,320
+﻿Name,DisplayName,CategoryID,BuildingTypeID,PriorityTier,Tier,RequiredBuildingID,BaseFunction,UpgradeFunction,BuildActorClass,StaticMesh,SizeX,SizeY,SizeZ
+BLD_WORKBENCH_T1,작업대 I,CAT_CRAFTING,WORKBENCH,1,1,None,기본 제작대,기본 레시피 언락,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Workbench_T1.SM_Workbench_T1,300,300,102
+BLD_WORKBENCH_T2,작업대 II,CAT_CRAFTING,WORKBENCH,1,2,BLD_WORKBENCH_T1,개량 제작대,고급 레시피 언락,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Workbench_T2.SM_Workbench_T2,330,315,128
+BLD_WORKBENCH_T3,작업대 III,CAT_CRAFTING,WORKBENCH,1,3,BLD_WORKBENCH_T2,전문 제작대,전문 레시피 언락,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Workbench_T3.SM_Workbench_T3,375,345,153
+BLD_STORAGE_T1,보관함 I,CAT_STORAGE,STORAGE,2,1,None,아이템 30칸 저장,저장 공간 확장,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Storage_T1.SM_Storage_T1,195,195,153
+BLD_STORAGE_T2,보관함 II,CAT_STORAGE,STORAGE,2,2,BLD_STORAGE_T1,아이템 60칸 저장,저장 공간 추가 확장,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Storage_T2.SM_Storage_T2,240,225,187
+BLD_STORAGE_T3,보관함 III,CAT_STORAGE,STORAGE,2,3,BLD_STORAGE_T2,아이템 100칸 저장,강화 보관 기능,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Storage_T3.SM_Storage_T3,285,255,221
+BLD_BED_T1,침대 I,CAT_REST,BED,3,1,None,기본 휴식,체력 회복량 증가,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Bed_T1.SM_Bed_T1,315,165,85
+BLD_BED_T2,침대 II,CAT_REST,BED,3,2,BLD_BED_T1,개량 휴식,피로 회복량 증가,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Bed_T2.SM_Bed_T2,345,180,111
+BLD_BED_T3,침대 III,CAT_REST,BED,3,3,BLD_BED_T2,고급 휴식,버프 지속시간 증가,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Bed_T3.SM_Bed_T3,390,195,136
+BLD_FARM_T1,농경지 I,CAT_FARM,FARM,4,1,None,기본 작물 재배,작물 성장속도 증가,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Farm_T1.SM_Farm_T1,375,375,68
+BLD_FARM_T2,농경지 II,CAT_FARM,FARM,4,2,BLD_FARM_T1,개량 작물 재배,수확량 증가,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Farm_T2.SM_Farm_T2,405,405,94
+BLD_FARM_T3,농경지 III,CAT_FARM,FARM,4,3,BLD_FARM_T2,고급 작물 재배,희귀 작물 재배,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Farm_T3.SM_Farm_T3,450,450,119
+BLD_FIREPIT_T1,화덕 I,CAT_COOKING,FIREPIT,5,1,None,기본 조리,조리 속도 증가,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Firepit_T1.SM_Firepit_T1,195,195,119
+BLD_FIREPIT_T2,화덕 II,CAT_COOKING,FIREPIT,5,2,BLD_FIREPIT_T1,개량 조리,제련 보조 기능,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Firepit_T2.SM_Firepit_T2,240,240,187
+BLD_FIREPIT_T3,화덕 III,CAT_COOKING,FIREPIT,5,3,BLD_FIREPIT_T2,고급 조리,고급 제련 보조,/Game/Blueprints/BP_BuildableActor.BP_BuildableActor_C,/Game/Build/Meshes/SM_Firepit_T3.SM_Firepit_T3,285,285,272

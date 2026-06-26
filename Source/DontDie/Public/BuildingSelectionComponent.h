@@ -38,6 +38,9 @@ public:
 	bool SelectTierForCurrentType(int32 Tier);
 
 	UFUNCTION(BlueprintCallable, Category = "Build|Selection")
+	bool SelectTierForType(FName BuildingTypeID, int32 Tier);
+
+	UFUNCTION(BlueprintCallable, Category = "Build|Selection")
 	void ChangeSelectedBuilding(int32 Direction);
 
 	UFUNCTION(BlueprintCallable, Category = "Build|Selection")

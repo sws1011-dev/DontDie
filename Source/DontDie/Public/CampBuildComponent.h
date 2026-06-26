@@ -6,6 +6,21 @@
 #include "Components/ActorComponent.h"
 #include "CampBuildComponent.generated.h"
 
+UENUM(BlueprintType)
+enum class ECampBuildState : uint8
+{
+	Idle,
+	BuildList,
+	Placement,
+	Edit,
+	Demolition,
+	Move,
+	Modify
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCampBuildStateChanged, ECampBuildState, NewBuildState);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBuildHoverChanged, bool, bHasHoveredBuildable);
+
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class DONTDIE_API UCampBuildComponent : public UActorComponent
 {
@@ -48,6 +63,21 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Rotation")
 	float RotateStepDegrees = 10.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Construction")
+	bool bUseConstructionSitePlacement = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Construction")
+	TSubclassOf<class AConstructionSiteActor> ConstructionSiteActorClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Build|Placement")
+	bool bAutoPlaceNextPreviewBesideBuiltActor = true;
+
+	UPROPERTY(BlueprintAssignable, Category = "Build")
+	FOnCampBuildStateChanged OnBuildStateChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "Build")
+	FOnBuildHoverChanged OnBuildHoverChanged;
+
 	UFUNCTION(BlueprintCallable, Category = "Build|Selection")
 	void SetBuildingSelectionComponent(class UBuildingSelectionComponent* NewBuildingSelectionComponent);
 
@@ -71,6 +101,27 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Build")
 	bool CanPlaceCurrentPreview() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Build")
+	ECampBuildState GetBuildState() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Build")
+	void ToggleBuildList();
+
+	UFUNCTION(BlueprintCallable, Category = "Build")
+	void SetBuildListOpen(bool bOpen);
+
+	UFUNCTION(BlueprintCallable, Category = "Build")
+	bool IsBuildListOpen() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Build")
+	bool HasHoveredBuildable() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Build|Selection")
+	bool SelectBuildingByIndex(int32 BuildingIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "Build|Selection")
+	bool SelectBuildingByRowName(FName RowName);
 
 	UFUNCTION(BlueprintCallable, Category = "Build")
 	void ToggleBuildEditMode();
@@ -117,7 +168,7 @@ private:
 	bool bHasCurrentTraceHit = false;
 	bool bCanPlaceCurrentPreview = false;
 	bool bSurfacePlacementBlocked = false;
-	bool bBuildEditMode = false;
+	ECampBuildState BuildState = ECampBuildState::Idle;
 	float CurrentBuildYaw = 0.0f;
 
 	UPROPERTY()
@@ -129,18 +180,38 @@ private:
 	FHitResult CurrentTraceHit;
 	FIntPoint CurrentGridIndex = FIntPoint::ZeroValue;
 	FVector CurrentSnappedLocation = FVector::ZeroVector;
+	bool bUseAutoPlacementLocation = false;
+	FVector AutoPlacementLocation = FVector::ZeroVector;
+	FVector AutoPlacementCameraLocation = FVector::ZeroVector;
+	FRotator AutoPlacementCameraRotation = FRotator::ZeroRotator;
 
+	void SetBuildState(ECampBuildState NewBuildState);
+	void ClearPlacementState();
+	void ClearExistingBuildState();
 	void UpdateBuildTrace();
 	bool TraceFromCamera(FHitResult& OutHit) const;
-	void UpdateBuildEditTrace();
+	void UpdateExistingBuildTrace();
 	void SelectHoveredBuildable();
 	void SetHoveredBuildableActor(class ABuildableActor* NewHoveredBuildableActor);
 	void ClearHoveredBuildableActor();
 	void ClearSelectedBuildableActor();
+	bool SelectCurrentDataForBuildable(class ABuildableActor* BuildableActor);
+	bool IsSelectedDataSameAsSelectedBuildable() const;
+	void PrepareSelectedBuildableForPreview(bool bKeepOriginHighlighted);
+	void RestoreSelectedBuildableAfterPreview();
+	void UpdateModifyPreviewAtSelectedBuildable();
+	bool MoveSelectedBuildableToPreview();
+	bool ReplaceSelectedBuildableWithSelectedData();
+	void ApplySelectedBuildingDataToActor(class ABuildableActor* BuildableActor) const;
+	class ABuildableActor* SpawnCompletedBuildActor(const FTransform& BuildTransform) const;
+	class AConstructionSiteActor* SpawnConstructionSiteActor(const FTransform& BuildTransform) const;
+	class AActor* SpawnPlacedBuildActor(const FTransform& BuildTransform) const;
+	void SetupAutoNextPlacementFromActor(const class AActor* PlacedActor);
+	bool ShouldUseAutoPlacementLocation() const;
+	void UpdateAutoPlacementPreview();
 	class UBuildingSelectionComponent* GetBuildingSelectionComponent();
 	const class UBuildingSelectionComponent* GetBuildingSelectionComponent() const;
 	void SyncLegacyBuildingDataTable();
-	bool SelectInitialBuilding();
 	const struct FBuildingDataRow* GetSelectedBuildingData() const;
 	FVector GetSelectedBuildSize() const;
 	TSubclassOf<class ABuildableActor> GetSelectedBuildActorClass() const;

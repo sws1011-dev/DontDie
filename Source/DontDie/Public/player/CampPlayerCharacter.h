@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "CampBuildComponent.h"
 #include "player/BasePlayerCharacter.h"
 #include "CampPlayerCharacter.generated.h"
 
@@ -34,6 +35,9 @@ public:
 	class UInputAction* IaCancelBuild;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Build")
+	class UInputAction* IaToggleBuildList;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Build")
 	class UInputAction* IaRotateBuild;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Build")
@@ -54,14 +58,30 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Build")
 	class UInputAction* IaEditSelectedBuild;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Interaction")
+	class UInputAction* IaInteract;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
+	float InteractionTraceDistance = 350.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI|Build")
+	TSubclassOf<class UBuildingListWidget> BuildingListWidgetClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI|Build")
+	TSubclassOf<class UBuildShortcutHintWidget> BuildShortcutHintWidgetClass;
+
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+protected:
+	virtual void BeginPlay() override;
 
 private:
 	void ToggleBuildMode();
 	void SetBuildMode(bool bEnabled);
 	void ConfirmBuild();
 	void CancelBuild();
+	void ToggleBuildList();
 	void RotateBuild(const struct FInputActionValue& Value);
 	void ChangeBuildType(const struct FInputActionValue& Value);
 	void ChangeBuildTier(const struct FInputActionValue& Value);
@@ -69,6 +89,26 @@ private:
 	void DeleteSelectedBuild();
 	void MoveSelectedBuild();
 	void EditSelectedBuild();
+	void Interact();
+	bool CompleteLookedAtConstructionSite() const;
 	void AddBuildMappingContext();
 	void RemoveBuildMappingContext();
+	void ShowBuildingListWidget();
+	void HideBuildingListWidget();
+	void ShowBuildShortcutHintWidget();
+	void HideBuildShortcutHintWidget();
+
+	UFUNCTION()
+	void HandleBuildStateChanged(ECampBuildState NewBuildState);
+
+	UFUNCTION()
+	void HandleBuildHoverChanged(bool bHasHoveredBuildable);
+
+	void RefreshBuildShortcutHintWidget();
+
+	UPROPERTY()
+	class UBuildingListWidget* BuildingListWidgetInstance = nullptr;
+
+	UPROPERTY()
+	class UBuildShortcutHintWidget* BuildShortcutHintWidgetInstance = nullptr;
 };

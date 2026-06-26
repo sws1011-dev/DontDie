@@ -7,6 +7,7 @@
 #include "BuildingDataRow.h"
 #include "BuildableActor.h"
 #include "Camera/PlayerCameraManager.h"
+#include "ConstructionSiteActor.h"
 #include "Engine/OverlapResult.h"
 #include "Engine/StaticMesh.h"
 #include "GameFramework/Pawn.h"
@@ -24,13 +25,13 @@ void UCampBuildComponent::TickComponent(float DeltaTime, ELevelTick TickType, FA
 
 	if (bBuildMode)
 	{
-		if (bBuildEditMode)
-		{
-			UpdateBuildEditTrace();
-		}
-		else
+		if (BuildState == ECampBuildState::Placement || BuildState == ECampBuildState::Move)
 		{
 			UpdateBuildTrace();
+		}
+		else if (BuildState == ECampBuildState::Idle || BuildState == ECampBuildState::Demolition)
+		{
+			UpdateExistingBuildTrace();
 		}
 	}
 }
@@ -46,20 +47,22 @@ void UCampBuildComponent::SetBuildMode(bool bEnabled)
 
 	if (!bBuildMode)
 	{
+		RestoreSelectedBuildableAfterPreview();
 		bHasCurrentTraceHit = false;
 		bCanPlaceCurrentPreview = false;
 		bSurfacePlacementBlocked = false;
-		bBuildEditMode = false;
-		ClearHoveredBuildableActor();
-		ClearSelectedBuildableActor();
-		DestroyBuildPreviewActor();
+		ClearPlacementState();
+		ClearExistingBuildState();
+		SetBuildState(ECampBuildState::Idle);
 	}
 	else
 	{
 		SyncLegacyBuildingDataTable();
-		SelectInitialBuilding();
-
-		SpawnBuildPreviewActor();
+		if (UBuildingSelectionComponent* SelectionComponent = GetBuildingSelectionComponent())
+		{
+			SelectionComponent->LoadBuildingDataRows();
+		}
+		SetBuildState(ECampBuildState::Idle);
 	}
 }
 
@@ -93,50 +96,154 @@ bool UCampBuildComponent::CanPlaceCurrentPreview() const
 	return bCanPlaceCurrentPreview;
 }
 
-void UCampBuildComponent::ToggleBuildEditMode()
+ECampBuildState UCampBuildComponent::GetBuildState() const
 {
-	SetBuildEditMode(!bBuildEditMode);
+	return BuildState;
 }
 
-void UCampBuildComponent::SetBuildEditMode(bool bEnabled)
+void UCampBuildComponent::ToggleBuildList()
 {
-	if (!bBuildMode || bBuildEditMode == bEnabled)
+	SetBuildListOpen(BuildState != ECampBuildState::BuildList);
+}
+
+void UCampBuildComponent::SetBuildListOpen(bool bOpen)
+{
+	if (!bBuildMode)
 	{
 		return;
 	}
 
-	bBuildEditMode = bEnabled;
-	if (bBuildEditMode)
+	SetBuildState(bOpen ? ECampBuildState::BuildList : ECampBuildState::Idle);
+}
+
+bool UCampBuildComponent::IsBuildListOpen() const
+{
+	return BuildState == ECampBuildState::BuildList;
+}
+
+bool UCampBuildComponent::HasHoveredBuildable() const
+{
+	return HoveredBuildableActor != nullptr;
+}
+
+bool UCampBuildComponent::SelectBuildingByIndex(int32 BuildingIndex)
+{
+	if (!bBuildMode)
 	{
-		bHasCurrentTraceHit = false;
-		bCanPlaceCurrentPreview = false;
-		DestroyBuildPreviewActor();
+		return false;
 	}
-	else
+
+	UBuildingSelectionComponent* SelectionComponent = GetBuildingSelectionComponent();
+	if (SelectionComponent == nullptr)
 	{
-		ClearHoveredBuildableActor();
-		ClearSelectedBuildableActor();
-		SpawnBuildPreviewActor();
-		UpdateBuildPreviewActor();
+		return false;
+	}
+
+	if (SelectionComponent->GetBuildingRowNames().IsEmpty())
+	{
+		SelectionComponent->LoadBuildingDataRows();
+	}
+
+	if (!SelectionComponent->SelectBuildingByIndex(BuildingIndex))
+	{
+		return false;
+	}
+
+	SetBuildState(ECampBuildState::Placement);
+	SpawnBuildPreviewActor();
+	UpdateBuildPreviewActor();
+	return CurrentPreviewActor != nullptr;
+}
+
+bool UCampBuildComponent::SelectBuildingByRowName(FName RowName)
+{
+	if (!bBuildMode)
+	{
+		return false;
+	}
+
+	UBuildingSelectionComponent* SelectionComponent = GetBuildingSelectionComponent();
+	if (SelectionComponent == nullptr)
+	{
+		return false;
+	}
+
+	if (SelectionComponent->GetBuildingRowNames().IsEmpty())
+	{
+		SelectionComponent->LoadBuildingDataRows();
+	}
+
+	if (!SelectionComponent->SelectBuildingByRowName(RowName))
+	{
+		return false;
+	}
+
+	SetBuildState(ECampBuildState::Placement);
+	SpawnBuildPreviewActor();
+	UpdateBuildPreviewActor();
+	return CurrentPreviewActor != nullptr;
+}
+
+void UCampBuildComponent::ToggleBuildEditMode()
+{
+	SetBuildEditMode(BuildState != ECampBuildState::Edit);
+}
+
+void UCampBuildComponent::SetBuildEditMode(bool bEnabled)
+{
+	if (!bBuildMode)
+	{
+		return;
+	}
+
+	if (!bEnabled)
+	{
+		SetBuildState(ECampBuildState::Idle);
+		return;
+	}
+
+	if (HoveredBuildableActor == nullptr)
+	{
+		return;
+	}
+
+	SelectHoveredBuildable();
+	SetBuildState(ECampBuildState::Edit);
+	if (SelectedBuildableActor != nullptr)
+	{
+		SelectedBuildableActor->SetHoverPreview(true);
 	}
 }
 
 bool UCampBuildComponent::IsBuildEditModeEnabled() const
 {
-	return bBuildEditMode;
+	return BuildState == ECampBuildState::Edit;
 }
 
 bool UCampBuildComponent::DeleteSelectedBuild()
 {
-	if (!bBuildMode || !bBuildEditMode)
+	if (!bBuildMode)
 	{
 		return false;
+	}
+
+	if (BuildState == ECampBuildState::Demolition)
+	{
+		SetBuildState(ECampBuildState::Idle);
+		return true;
+	}
+
+	if (BuildState != ECampBuildState::Edit)
+	{
+		SetBuildState(ECampBuildState::Demolition);
+		return true;
 	}
 
 	ABuildableActor* DeleteTarget = SelectedBuildableActor != nullptr ? SelectedBuildableActor : HoveredBuildableActor;
 	if (DeleteTarget == nullptr)
 	{
-		return false;
+		SetBuildState(ECampBuildState::Demolition);
+		return true;
 	}
 
 	if (DeleteTarget == HoveredBuildableActor)
@@ -155,24 +262,70 @@ bool UCampBuildComponent::DeleteSelectedBuild()
 
 bool UCampBuildComponent::MoveSelectedBuild()
 {
-	if (!bBuildMode || !bBuildEditMode)
+	if (!bBuildMode || BuildState != ECampBuildState::Edit)
 	{
 		return false;
 	}
 
-	SelectHoveredBuildable();
-	return SelectedBuildableActor != nullptr;
+	if (SelectedBuildableActor == nullptr)
+	{
+		SelectHoveredBuildable();
+		if (SelectedBuildableActor == nullptr)
+		{
+			return false;
+		}
+	}
+
+	if (!SelectCurrentDataForBuildable(SelectedBuildableActor))
+	{
+		return false;
+	}
+
+	CurrentBuildYaw = SelectedBuildableActor->GetActorRotation().Yaw;
+	SetBuildState(ECampBuildState::Move);
+	PrepareSelectedBuildableForPreview(true);
+	SpawnBuildPreviewActor();
+	UpdateModifyPreviewAtSelectedBuildable();
+	if (CurrentPreviewActor == nullptr)
+	{
+		RestoreSelectedBuildableAfterPreview();
+		SetBuildState(ECampBuildState::Edit);
+	}
+	return CurrentPreviewActor != nullptr;
 }
 
 bool UCampBuildComponent::EditSelectedBuild()
 {
-	if (!bBuildMode || !bBuildEditMode)
+	if (!bBuildMode || BuildState != ECampBuildState::Edit)
 	{
 		return false;
 	}
 
-	SelectHoveredBuildable();
-	return SelectedBuildableActor != nullptr;
+	if (SelectedBuildableActor == nullptr)
+	{
+		SelectHoveredBuildable();
+		if (SelectedBuildableActor == nullptr)
+		{
+			return false;
+		}
+	}
+
+	if (!SelectCurrentDataForBuildable(SelectedBuildableActor))
+	{
+		return false;
+	}
+
+	CurrentBuildYaw = SelectedBuildableActor->GetActorRotation().Yaw;
+	SetBuildState(ECampBuildState::Modify);
+	PrepareSelectedBuildableForPreview(false);
+	SpawnBuildPreviewActor();
+	UpdateModifyPreviewAtSelectedBuildable();
+	if (CurrentPreviewActor == nullptr)
+	{
+		RestoreSelectedBuildableAfterPreview();
+		SetBuildState(ECampBuildState::Edit);
+	}
+	return CurrentPreviewActor != nullptr;
 }
 
 bool UCampBuildComponent::ConfirmBuild()
@@ -182,10 +335,47 @@ bool UCampBuildComponent::ConfirmBuild()
 		return false;
 	}
 
-	if (bBuildEditMode)
+	if (BuildState == ECampBuildState::Edit)
 	{
-		SelectHoveredBuildable();
-		return SelectedBuildableActor != nullptr;
+		if (SelectedBuildableActor == nullptr)
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	if (BuildState == ECampBuildState::Demolition)
+	{
+		ABuildableActor* DeleteTarget = HoveredBuildableActor;
+		if (DeleteTarget == nullptr)
+		{
+			return false;
+		}
+
+		HoveredBuildableActor = nullptr;
+		if (SelectedBuildableActor == DeleteTarget)
+		{
+			SelectedBuildableActor = nullptr;
+		}
+		DeleteTarget->SetDemolitionPreview(false);
+		DeleteTarget->Destroy();
+		return true;
+	}
+
+	if (BuildState == ECampBuildState::Modify)
+	{
+		return ReplaceSelectedBuildableWithSelectedData();
+	}
+
+	if (BuildState == ECampBuildState::Move)
+	{
+		return MoveSelectedBuildableToPreview();
+	}
+
+	if (BuildState != ECampBuildState::Placement)
+	{
+		return false;
 	}
 
 	if (!bHasCurrentTraceHit)
@@ -208,24 +398,45 @@ bool UCampBuildComponent::ConfirmBuild()
 		return false;
 	}
 
-	ABuildableActor* BuiltActor = CurrentPreviewActor;
-	CurrentPreviewActor = nullptr;
-	BuiltActor->FinalizeBuild();
+	const FTransform BuildTransform = CurrentPreviewActor->GetActorTransform();
+	DestroyBuildPreviewActor();
+
+	AActor* PlacedActor = SpawnPlacedBuildActor(BuildTransform);
+	if (PlacedActor == nullptr)
+	{
+		return false;
+	}
 
 	SpawnBuildPreviewActor();
-	UpdateBuildPreviewActor();
+	SetupAutoNextPlacementFromActor(PlacedActor);
 
 	return true;
 }
 
 void UCampBuildComponent::CancelBuild()
 {
-	SetBuildMode(false);
+	if (!bBuildMode)
+	{
+		return;
+	}
+
+	if (BuildState == ECampBuildState::Move || BuildState == ECampBuildState::Modify)
+	{
+		RestoreSelectedBuildableAfterPreview();
+		SetBuildState(ECampBuildState::Edit);
+		if (SelectedBuildableActor != nullptr)
+		{
+			SelectedBuildableActor->SetHoverPreview(true);
+		}
+		return;
+	}
+
+	SetBuildState(ECampBuildState::Idle);
 }
 
 void UCampBuildComponent::RotatePreview(float YawDelta)
 {
-	if (bBuildEditMode)
+	if (BuildState != ECampBuildState::Placement && BuildState != ECampBuildState::Move && BuildState != ECampBuildState::Modify)
 	{
 		return;
 	}
@@ -236,12 +447,19 @@ void UCampBuildComponent::RotatePreview(float YawDelta)
 		CurrentBuildYaw += 360.0f;
 	}
 
-	UpdateBuildPreviewActor();
+	if (BuildState == ECampBuildState::Modify)
+	{
+		UpdateModifyPreviewAtSelectedBuildable();
+	}
+	else
+	{
+		UpdateBuildPreviewActor();
+	}
 }
 
 void UCampBuildComponent::ChangeSelectedBuilding(int32 Direction)
 {
-	if (bBuildEditMode)
+	if (BuildState != ECampBuildState::Placement && BuildState != ECampBuildState::Modify)
 	{
 		return;
 	}
@@ -255,12 +473,19 @@ void UCampBuildComponent::ChangeSelectedBuilding(int32 Direction)
 	SelectionComponent->ChangeSelectedBuilding(Direction);
 	DestroyBuildPreviewActor();
 	SpawnBuildPreviewActor();
-	UpdateBuildPreviewActor();
+	if (BuildState == ECampBuildState::Modify)
+	{
+		UpdateModifyPreviewAtSelectedBuildable();
+	}
+	else
+	{
+		UpdateBuildPreviewActor();
+	}
 }
 
 void UCampBuildComponent::ChangeSelectedTier(int32 Direction)
 {
-	if (bBuildEditMode)
+	if (BuildState != ECampBuildState::Placement && BuildState != ECampBuildState::Modify)
 	{
 		return;
 	}
@@ -272,6 +497,14 @@ void UCampBuildComponent::ChangeSelectedTier(int32 Direction)
 	}
 
 	SelectionComponent->ChangeSelectedTier(Direction);
+	if (BuildState == ECampBuildState::Modify)
+	{
+		DestroyBuildPreviewActor();
+		SpawnBuildPreviewActor();
+		UpdateModifyPreviewAtSelectedBuildable();
+		return;
+	}
+
 	DestroyBuildPreviewActor();
 	SpawnBuildPreviewActor();
 	UpdateBuildPreviewActor();
@@ -279,6 +512,14 @@ void UCampBuildComponent::ChangeSelectedTier(int32 Direction)
 
 void UCampBuildComponent::UpdateBuildTrace()
 {
+	if (bUseAutoPlacementLocation && ShouldUseAutoPlacementLocation())
+	{
+		UpdateAutoPlacementPreview();
+		return;
+	}
+
+	bUseAutoPlacementLocation = false;
+
 	FHitResult HitResult;
 	bHasCurrentTraceHit = TraceFromCamera(HitResult);
 
@@ -323,7 +564,7 @@ bool UCampBuildComponent::TraceFromCamera(FHitResult& OutHit) const
 	return World->LineTraceSingleByChannel(OutHit, TraceStart, TraceEnd, BuildTraceChannel, QueryParams);
 }
 
-void UCampBuildComponent::UpdateBuildEditTrace()
+void UCampBuildComponent::UpdateExistingBuildTrace()
 {
 	FHitResult HitResult;
 	const bool bHit = TraceFromCamera(HitResult);
@@ -335,6 +576,42 @@ void UCampBuildComponent::UpdateBuildEditTrace()
 	{
 		CurrentTraceHit = HitResult;
 	}
+}
+
+void UCampBuildComponent::SetBuildState(ECampBuildState NewBuildState)
+{
+	if (BuildState == NewBuildState)
+	{
+		return;
+	}
+
+	const bool bKeepSelectedBuildable = NewBuildState == ECampBuildState::Edit || NewBuildState == ECampBuildState::Move || NewBuildState == ECampBuildState::Modify;
+	if (NewBuildState != ECampBuildState::Placement)
+	{
+		bUseAutoPlacementLocation = false;
+	}
+	ClearPlacementState();
+	ClearHoveredBuildableActor();
+	if (!bKeepSelectedBuildable)
+	{
+		ClearSelectedBuildableActor();
+	}
+	BuildState = NewBuildState;
+	bHasCurrentTraceHit = false;
+	bCanPlaceCurrentPreview = false;
+	bSurfacePlacementBlocked = false;
+	OnBuildStateChanged.Broadcast(BuildState);
+}
+
+void UCampBuildComponent::ClearPlacementState()
+{
+	DestroyBuildPreviewActor();
+}
+
+void UCampBuildComponent::ClearExistingBuildState()
+{
+	ClearHoveredBuildableActor();
+	ClearSelectedBuildableActor();
 }
 
 void UCampBuildComponent::SelectHoveredBuildable()
@@ -353,22 +630,334 @@ void UCampBuildComponent::SetHoveredBuildableActor(ABuildableActor* NewHoveredBu
 	HoveredBuildableActor = NewHoveredBuildableActor;
 	if (HoveredBuildableActor != nullptr)
 	{
-		HoveredBuildableActor->SetDemolitionPreview(true);
+		if (BuildState == ECampBuildState::Demolition)
+		{
+			HoveredBuildableActor->SetDemolitionPreview(true);
+		}
+		else if (BuildState == ECampBuildState::Edit)
+		{
+			HoveredBuildableActor->SetHoverPreview(true);
+		}
 	}
+	OnBuildHoverChanged.Broadcast(HoveredBuildableActor != nullptr);
 }
 
 void UCampBuildComponent::ClearHoveredBuildableActor()
 {
 	if (HoveredBuildableActor != nullptr)
 	{
+		if (HoveredBuildableActor != SelectedBuildableActor)
+		{
+			HoveredBuildableActor->SetHoverPreview(false);
+		}
 		HoveredBuildableActor->SetDemolitionPreview(false);
 		HoveredBuildableActor = nullptr;
+		OnBuildHoverChanged.Broadcast(false);
 	}
 }
 
 void UCampBuildComponent::ClearSelectedBuildableActor()
 {
+	if (SelectedBuildableActor != nullptr)
+	{
+		SelectedBuildableActor->SetHoverPreview(false);
+		SelectedBuildableActor->SetDemolitionPreview(false);
+	}
 	SelectedBuildableActor = nullptr;
+}
+
+bool UCampBuildComponent::SelectCurrentDataForBuildable(ABuildableActor* BuildableActor)
+{
+	if (BuildableActor == nullptr)
+	{
+		return false;
+	}
+
+	UBuildingSelectionComponent* SelectionComponent = GetBuildingSelectionComponent();
+	if (SelectionComponent == nullptr)
+	{
+		return false;
+	}
+
+	if (SelectionComponent->GetBuildingRowNames().IsEmpty())
+	{
+		SelectionComponent->LoadBuildingDataRows();
+	}
+
+	if (!BuildableActor->BuildingRowName.IsNone() && SelectionComponent->SelectBuildingByRowName(BuildableActor->BuildingRowName))
+	{
+		return true;
+	}
+
+	return !BuildableActor->BuildingTypeID.IsNone() && SelectionComponent->SelectTierForType(BuildableActor->BuildingTypeID, BuildableActor->Tier);
+}
+
+bool UCampBuildComponent::IsSelectedDataSameAsSelectedBuildable() const
+{
+	if (SelectedBuildableActor == nullptr)
+	{
+		return false;
+	}
+
+	const UBuildingSelectionComponent* SelectionComponent = GetBuildingSelectionComponent();
+	const FBuildingDataRow* BuildingData = GetSelectedBuildingData();
+	if (SelectionComponent == nullptr || BuildingData == nullptr)
+	{
+		return false;
+	}
+
+	if (!SelectedBuildableActor->BuildingRowName.IsNone())
+	{
+		return SelectionComponent->GetCurrentBuildingRowName() == SelectedBuildableActor->BuildingRowName;
+	}
+
+	return BuildingData->BuildingTypeID == SelectedBuildableActor->BuildingTypeID
+		&& BuildingData->Tier == SelectedBuildableActor->Tier;
+}
+
+void UCampBuildComponent::PrepareSelectedBuildableForPreview(bool bKeepOriginHighlighted)
+{
+	if (SelectedBuildableActor == nullptr)
+	{
+		return;
+	}
+
+	SelectedBuildableActor->SetHoverPreview(false);
+	SelectedBuildableActor->SetDemolitionPreview(false);
+	if (bKeepOriginHighlighted)
+	{
+		SelectedBuildableActor->SetHoverPreview(true);
+	}
+	SelectedBuildableActor->SetActorHiddenInGame(!bKeepOriginHighlighted);
+	SelectedBuildableActor->SetActorEnableCollision(false);
+}
+
+void UCampBuildComponent::RestoreSelectedBuildableAfterPreview()
+{
+	if (SelectedBuildableActor == nullptr)
+	{
+		return;
+	}
+
+	SelectedBuildableActor->SetHoverPreview(true);
+	SelectedBuildableActor->SetActorHiddenInGame(false);
+	SelectedBuildableActor->SetActorEnableCollision(true);
+}
+
+void UCampBuildComponent::UpdateModifyPreviewAtSelectedBuildable()
+{
+	if (SelectedBuildableActor == nullptr || CurrentPreviewActor == nullptr)
+	{
+		bHasCurrentTraceHit = false;
+		bCanPlaceCurrentPreview = false;
+		return;
+	}
+
+	const FVector SelectedLocation = SelectedBuildableActor->GetActorLocation();
+	const float GroundZ = SelectedLocation.Z - SelectedBuildableActor->ActorHalfHeight;
+	CurrentSnappedLocation = FVector(SelectedLocation.X, SelectedLocation.Y, GroundZ);
+	bHasCurrentTraceHit = true;
+	bSurfacePlacementBlocked = false;
+
+	UpdatePlacementBoxTrace();
+	UpdateBuildPreviewActor();
+}
+
+bool UCampBuildComponent::MoveSelectedBuildableToPreview()
+{
+	if (SelectedBuildableActor == nullptr || CurrentPreviewActor == nullptr || !bHasCurrentTraceHit || !bCanPlaceCurrentPreview)
+	{
+		return false;
+	}
+
+	SelectedBuildableActor->SetActorTransform(CurrentPreviewActor->GetActorTransform());
+	RestoreSelectedBuildableAfterPreview();
+	SetBuildState(ECampBuildState::Idle);
+	return true;
+}
+
+bool UCampBuildComponent::ReplaceSelectedBuildableWithSelectedData()
+{
+	if (SelectedBuildableActor == nullptr || CurrentPreviewActor == nullptr || !bHasCurrentTraceHit || !bCanPlaceCurrentPreview)
+	{
+		return false;
+	}
+
+	ABuildableActor* NewBuildableActor = CurrentPreviewActor;
+	CurrentPreviewActor = nullptr;
+	NewBuildableActor->FinalizeBuild();
+
+	SelectedBuildableActor->SetHoverPreview(false);
+	SelectedBuildableActor->SetDemolitionPreview(false);
+	SelectedBuildableActor->Destroy();
+	SelectedBuildableActor = NewBuildableActor;
+	SetBuildState(ECampBuildState::Edit);
+	return true;
+}
+
+void UCampBuildComponent::ApplySelectedBuildingDataToActor(ABuildableActor* BuildableActor) const
+{
+	if (BuildableActor == nullptr)
+	{
+		return;
+	}
+
+	const FVector SelectedBuildSize = GetSelectedBuildSize();
+	if (!SelectedBuildSize.IsNearlyZero())
+	{
+		BuildableActor->SetBuildSize(SelectedBuildSize);
+	}
+
+	if (const FBuildingDataRow* BuildingData = GetSelectedBuildingData())
+	{
+		BuildableActor->SetBuildingData(
+			GetBuildingSelectionComponent() != nullptr ? GetBuildingSelectionComponent()->GetCurrentBuildingRowName() : NAME_None,
+			BuildingData->BuildingTypeID,
+			BuildingData->Tier);
+
+		if (UStaticMesh* StaticMesh = BuildingData->StaticMesh.LoadSynchronous())
+		{
+			BuildableActor->SetBuildMesh(StaticMesh);
+		}
+	}
+}
+
+ABuildableActor* UCampBuildComponent::SpawnCompletedBuildActor(const FTransform& BuildTransform) const
+{
+	const TSubclassOf<ABuildableActor> SelectedBuildActorClass = GetSelectedBuildActorClass();
+	UWorld* World = GetWorld();
+	if (World == nullptr || SelectedBuildActorClass == nullptr)
+	{
+		return nullptr;
+	}
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = GetOwner();
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	ABuildableActor* BuiltActor = World->SpawnActor<ABuildableActor>(SelectedBuildActorClass, BuildTransform, SpawnParams);
+	if (BuiltActor == nullptr)
+	{
+		return nullptr;
+	}
+
+	ApplySelectedBuildingDataToActor(BuiltActor);
+	BuiltActor->FinalizeBuild();
+	return BuiltActor;
+}
+
+AConstructionSiteActor* UCampBuildComponent::SpawnConstructionSiteActor(const FTransform& BuildTransform) const
+{
+	UWorld* World = GetWorld();
+	if (World == nullptr)
+	{
+		return nullptr;
+	}
+
+	TSubclassOf<AConstructionSiteActor> SiteClass = ConstructionSiteActorClass;
+	if (SiteClass == nullptr)
+	{
+		SiteClass = AConstructionSiteActor::StaticClass();
+	}
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = GetOwner();
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	AConstructionSiteActor* ConstructionSiteActor = World->SpawnActor<AConstructionSiteActor>(SiteClass, BuildTransform, SpawnParams);
+	if (ConstructionSiteActor == nullptr)
+	{
+		return nullptr;
+	}
+
+	const FBuildingDataRow* BuildingData = GetSelectedBuildingData();
+	const UBuildingSelectionComponent* SelectionComponent = GetBuildingSelectionComponent();
+	if (BuildingData == nullptr || SelectionComponent == nullptr)
+	{
+		return ConstructionSiteActor;
+	}
+
+	UStaticMesh* StaticMesh = BuildingData->StaticMesh.LoadSynchronous();
+	ConstructionSiteActor->InitializeConstructionSite(
+		SelectionComponent->GetCurrentBuildingRowName(),
+		BuildingData->BuildingTypeID,
+		BuildingData->Tier,
+		GetSelectedBuildSize(),
+		GetSelectedBuildActorClass(),
+		StaticMesh);
+
+	return ConstructionSiteActor;
+}
+
+AActor* UCampBuildComponent::SpawnPlacedBuildActor(const FTransform& BuildTransform) const
+{
+	if (bUseConstructionSitePlacement)
+	{
+		return SpawnConstructionSiteActor(BuildTransform);
+	}
+
+	return SpawnCompletedBuildActor(BuildTransform);
+}
+
+void UCampBuildComponent::SetupAutoNextPlacementFromActor(const AActor* PlacedActor)
+{
+	if (!bAutoPlaceNextPreviewBesideBuiltActor || PlacedActor == nullptr || CurrentPreviewActor == nullptr)
+	{
+		UpdateBuildPreviewActor();
+		return;
+	}
+
+	const FVector2D FootprintSize = GetGridAlignedFootprintSize();
+	const FVector SideOffset = FRotator(0.0f, CurrentBuildYaw, 0.0f).RotateVector(FVector(0.0f, FootprintSize.Y, 0.0f));
+	const FVector PlacedActorLocation = PlacedActor->GetActorLocation();
+	const float GroundZ = PlacedActorLocation.Z - GetBuildActorHalfHeight();
+	AutoPlacementLocation = FVector(PlacedActorLocation.X, PlacedActorLocation.Y, GroundZ) + SideOffset;
+
+	const APawn* OwnerPawn = Cast<APawn>(GetOwner());
+	const APlayerController* PC = OwnerPawn != nullptr ? Cast<APlayerController>(OwnerPawn->GetController()) : nullptr;
+	if (PC != nullptr && PC->PlayerCameraManager != nullptr)
+	{
+		AutoPlacementCameraLocation = PC->PlayerCameraManager->GetCameraLocation();
+		AutoPlacementCameraRotation = PC->PlayerCameraManager->GetCameraRotation();
+	}
+
+	bUseAutoPlacementLocation = true;
+	UpdateAutoPlacementPreview();
+}
+
+bool UCampBuildComponent::ShouldUseAutoPlacementLocation() const
+{
+	if (!bUseAutoPlacementLocation || BuildState != ECampBuildState::Placement || CurrentPreviewActor == nullptr)
+	{
+		return false;
+	}
+
+	const APawn* OwnerPawn = Cast<APawn>(GetOwner());
+	const APlayerController* PC = OwnerPawn != nullptr ? Cast<APlayerController>(OwnerPawn->GetController()) : nullptr;
+	if (PC == nullptr || PC->PlayerCameraManager == nullptr)
+	{
+		return true;
+	}
+
+	const FVector CameraLocation = PC->PlayerCameraManager->GetCameraLocation();
+	const FRotator CameraRotation = PC->PlayerCameraManager->GetCameraRotation();
+	const bool bCameraMoved = FVector::DistSquared(CameraLocation, AutoPlacementCameraLocation) > FMath::Square(5.0f);
+	const bool bCameraRotated = FMath::Abs(FMath::FindDeltaAngleDegrees(CameraRotation.Yaw, AutoPlacementCameraRotation.Yaw)) > 1.0f
+		|| FMath::Abs(FMath::FindDeltaAngleDegrees(CameraRotation.Pitch, AutoPlacementCameraRotation.Pitch)) > 1.0f;
+
+	return !bCameraMoved && !bCameraRotated;
+}
+
+void UCampBuildComponent::UpdateAutoPlacementPreview()
+{
+	bHasCurrentTraceHit = true;
+	CurrentTraceHit.ImpactPoint = AutoPlacementLocation;
+	CurrentGridIndex = WorldLocationToGridIndex(AutoPlacementLocation);
+	CurrentSnappedLocation = AutoPlacementLocation;
+
+	UpdateSurfaceTraces();
+	UpdatePlacementBoxTrace();
+	UpdateBuildPreviewActor();
 }
 
 UBuildingSelectionComponent* UCampBuildComponent::GetBuildingSelectionComponent()
@@ -395,23 +984,6 @@ void UCampBuildComponent::SyncLegacyBuildingDataTable()
 	{
 		SelectionComponent->BuildingDataTable = BuildingDataTable;
 	}
-}
-
-bool UCampBuildComponent::SelectInitialBuilding()
-{
-	UBuildingSelectionComponent* SelectionComponent = GetBuildingSelectionComponent();
-	if (SelectionComponent == nullptr)
-	{
-		return false;
-	}
-
-	SelectionComponent->LoadBuildingDataRows();
-	if (SelectionComponent->GetBuildingRowNames().IsValidIndex(SelectionComponent->GetSelectedBuildingIndex()))
-	{
-		return SelectionComponent->SelectBuildingByIndex(SelectionComponent->GetSelectedBuildingIndex());
-	}
-
-	return !SelectionComponent->GetBuildingRowNames().IsEmpty() && SelectionComponent->SelectBuildingByIndex(0);
 }
 
 const FBuildingDataRow* UCampBuildComponent::GetSelectedBuildingData() const
@@ -570,6 +1142,10 @@ bool UCampBuildComponent::TraceSurfaceAtLocation(const FVector& TraceLocation, F
 	{
 		QueryParams.AddIgnoredActor(CurrentPreviewActor);
 	}
+	if (SelectedBuildableActor != nullptr && (BuildState == ECampBuildState::Move || BuildState == ECampBuildState::Modify))
+	{
+		QueryParams.AddIgnoredActor(SelectedBuildableActor);
+	}
 
 	return World->LineTraceSingleByChannel(OutHit, TraceStart, TraceEnd, BuildTraceChannel, QueryParams);
 }
@@ -577,7 +1153,7 @@ bool UCampBuildComponent::TraceSurfaceAtLocation(const FVector& TraceLocation, F
 bool UCampBuildComponent::IsBlockedSurfaceHit(const FHitResult& HitResult) const
 {
 	const AActor* HitActor = HitResult.GetActor();
-	return HitActor != nullptr && HitActor->IsA<ABuildableActor>();
+	return HitActor != nullptr && HitActor != CurrentPreviewActor && HitActor != SelectedBuildableActor && HitActor->IsA<ABuildableActor>();
 }
 
 bool UCampBuildComponent::IsUnsupportedSurfaceHit(bool bHit, const FHitResult& HitResult) const
@@ -623,6 +1199,10 @@ void UCampBuildComponent::UpdatePlacementBoxTrace()
 	if (CurrentPreviewActor != nullptr)
 	{
 		QueryParams.AddIgnoredActor(CurrentPreviewActor);
+	}
+	if (SelectedBuildableActor != nullptr && (BuildState == ECampBuildState::Move || BuildState == ECampBuildState::Modify))
+	{
+		QueryParams.AddIgnoredActor(SelectedBuildableActor);
 	}
 
 	TArray<FOverlapResult> BoxOverlaps;
@@ -677,18 +1257,7 @@ void UCampBuildComponent::SpawnBuildPreviewActor()
 	CurrentPreviewActor = World->SpawnActor<ABuildableActor>(SelectedBuildActorClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
 	if (CurrentPreviewActor != nullptr)
 	{
-		const FVector SelectedBuildSize = GetSelectedBuildSize();
-		if (!SelectedBuildSize.IsNearlyZero())
-		{
-			CurrentPreviewActor->SetBuildSize(SelectedBuildSize);
-		}
-		if (const FBuildingDataRow* BuildingData = GetSelectedBuildingData())
-		{
-			if (UStaticMesh* StaticMesh = BuildingData->StaticMesh.LoadSynchronous())
-			{
-				CurrentPreviewActor->SetBuildMesh(StaticMesh);
-			}
-		}
+		ApplySelectedBuildingDataToActor(CurrentPreviewActor);
 		CurrentPreviewActor->SetPreviewMode(true);
 		CurrentPreviewActor->SetActorHiddenInGame(true);
 	}
@@ -720,5 +1289,13 @@ void UCampBuildComponent::UpdateBuildPreviewActor()
 	CurrentPreviewActor->SetActorLocation(PreviewLocation);
 	CurrentPreviewActor->SetActorRotation(FRotator(0.0f, CurrentBuildYaw, 0.0f));
 	CurrentPreviewActor->SetActorHiddenInGame(false);
-	CurrentPreviewActor->SetPlacementValid(bCanPlaceCurrentPreview);
+	if (BuildState == ECampBuildState::Modify && IsSelectedDataSameAsSelectedBuildable())
+	{
+		CurrentPreviewActor->SetPreviewHighlighted(true);
+	}
+	else
+	{
+		CurrentPreviewActor->SetPreviewHighlighted(false);
+		CurrentPreviewActor->SetPlacementValid(bCanPlaceCurrentPreview);
+	}
 }

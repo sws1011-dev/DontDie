@@ -7,6 +7,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -36,6 +37,20 @@ ABuildableActor::ABuildableActor()
 	if (InvalidPreviewMaterialFinder.Succeeded())
 	{
 		InvalidPreviewMaterial = InvalidPreviewMaterialFinder.Object;
+	}
+
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> HoverPreviewMaterialFinder(TEXT("/Game/Build/Materials/M_BuildPreview_Hover.M_BuildPreview_Hover"));
+	if (HoverPreviewMaterialFinder.Succeeded())
+	{
+		HoverPreviewMaterial = HoverPreviewMaterialFinder.Object;
+	}
+	else
+	{
+		static ConstructorHelpers::FObjectFinder<UMaterialInterface> DefaultHoverPreviewMaterialFinder(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+		if (DefaultHoverPreviewMaterialFinder.Succeeded())
+		{
+			HoverPreviewMaterial = DefaultHoverPreviewMaterialFinder.Object;
+		}
 	}
 }
 
@@ -72,6 +87,23 @@ void ABuildableActor::SetPlacementValid(bool bIsValid)
 	ApplyMaterial(bIsValid ? ValidPreviewMaterial : InvalidPreviewMaterial);
 }
 
+void ABuildableActor::SetPreviewHighlighted(bool bHighlighted)
+{
+	if (!bPreviewMode)
+	{
+		return;
+	}
+
+	if (bHighlighted)
+	{
+		ApplyMaterial(GetHoverPreviewMaterial());
+	}
+	else
+	{
+		SetPlacementValid(true);
+	}
+}
+
 void ABuildableActor::SetDemolitionPreview(bool bEnabled)
 {
 	if (bPreviewMode || bDemolitionPreview == bEnabled)
@@ -84,6 +116,25 @@ void ABuildableActor::SetDemolitionPreview(bool bEnabled)
 	{
 		CacheOriginalMaterials();
 		ApplyMaterial(InvalidPreviewMaterial);
+	}
+	else
+	{
+		RestoreOriginalMaterials();
+	}
+}
+
+void ABuildableActor::SetHoverPreview(bool bEnabled)
+{
+	if (bPreviewMode || bDemolitionPreview || bHoverPreview == bEnabled)
+	{
+		return;
+	}
+
+	bHoverPreview = bEnabled;
+	if (bHoverPreview)
+	{
+		CacheOriginalMaterials();
+		ApplyMaterial(GetHoverPreviewMaterial());
 	}
 	else
 	{
@@ -122,6 +173,13 @@ void ABuildableActor::SetBuildMesh(UStaticMesh* NewMesh)
 	StaticMeshComponent->SetStaticMesh(NewMesh);
 	OriginalMaterials.Empty();
 	UpdateStaticMeshSize();
+}
+
+void ABuildableActor::SetBuildingData(FName NewBuildingRowName, FName NewBuildingTypeID, int32 NewTier)
+{
+	BuildingRowName = NewBuildingRowName;
+	BuildingTypeID = NewBuildingTypeID;
+	Tier = FMath::Max(NewTier, 1);
 }
 
 void ABuildableActor::CacheOriginalMaterials()
@@ -184,6 +242,29 @@ void ABuildableActor::SetActorCollisionEnabled(bool bEnabled)
 
 		PrimitiveComponent->SetCollisionEnabled(bEnabled ? ECollisionEnabled::QueryAndPhysics : ECollisionEnabled::NoCollision);
 	}
+}
+
+UMaterialInterface* ABuildableActor::GetHoverPreviewMaterial()
+{
+	if (HoverPreviewMaterial != nullptr)
+	{
+		return HoverPreviewMaterial;
+	}
+
+	if (RuntimeHoverPreviewMaterial == nullptr && ValidPreviewMaterial != nullptr)
+	{
+		RuntimeHoverPreviewMaterial = UMaterialInstanceDynamic::Create(ValidPreviewMaterial, this);
+		if (RuntimeHoverPreviewMaterial != nullptr)
+		{
+			const FLinearColor HoverColor = FLinearColor::White;
+			RuntimeHoverPreviewMaterial->SetVectorParameterValue(TEXT("Color"), HoverColor);
+			RuntimeHoverPreviewMaterial->SetVectorParameterValue(TEXT("BaseColor"), HoverColor);
+			RuntimeHoverPreviewMaterial->SetVectorParameterValue(TEXT("Tint"), HoverColor);
+			RuntimeHoverPreviewMaterial->SetVectorParameterValue(TEXT("PreviewColor"), HoverColor);
+		}
+	}
+
+	return RuntimeHoverPreviewMaterial != nullptr ? RuntimeHoverPreviewMaterial : ValidPreviewMaterial;
 }
 
 void ABuildableActor::ApplyMaterial(UMaterialInterface* Material)
